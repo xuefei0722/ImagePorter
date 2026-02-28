@@ -33,11 +33,11 @@ class TaskRow(ft.Container):
         self.is_success = False
         self._page = page
         
-        self.icon_ctrl = ft.Icon(ft.Icons.PENDING, color="#38506F", size=18)
+        self.icon_ctrl = ft.Icon(ft.Icons.PENDING, color="outline", size=18)
         self.text_image = ft.Text(f"{image} [{platform}]", width=300, selectable=True)
-        self.text_pull = ft.Text("pull:...", width=90, color="#6B87A8")
-        self.text_save = ft.Text("save:...", width=90, color="#6B87A8")
-        self.text_path = ft.Text("-", expand=True, selectable=True, color="#6B87A8")
+        self.text_pull = ft.Text("pull:...", width=90, color="onSurfaceVariant")
+        self.text_save = ft.Text("save:...", width=90, color="onSurfaceVariant")
+        self.text_path = ft.Text("-", expand=True, selectable=True, color="onSurfaceVariant")
         
         self.row_ctrl = ft.Row(
             [self.icon_ctrl, self.text_image, self.text_pull, self.text_save, self.text_path],
@@ -47,52 +47,52 @@ class TaskRow(ft.Container):
         super().__init__(
             content=self.row_ctrl,
             padding=6,
-            border=ft.Border.all(1, "#31465F"),
+            border=ft.Border.all(1, "outline"),
             border_radius=6,
-            bgcolor="#0E1623",
+            bgcolor="surfaceVariant",
         )
 
     def update_pull(self, status: str, ok: bool | None = None):
         if status == "进行中...":
-            self.icon_ctrl = ft.ProgressRing(width=16, height=16, stroke_width=2, color="#5DA9FF")
+            self.icon_ctrl = ft.ProgressRing(width=16, height=16, stroke_width=2, color="primary")
             self.row_ctrl.controls[0] = self.icon_ctrl
             
         self.text_pull.value = f"pull:{status}"
         if ok is True:
-            self.text_pull.color = ft.Colors.GREEN_400
+            self.text_pull.color = ft.colors.GREEN_400
         elif ok is False:
-            self.text_pull.color = ft.Colors.RED_400
+            self.text_pull.color = "error"
         else:
-            self.text_pull.color = "#5DA9FF"
+            self.text_pull.color = "primary"
         self._page.update()
 
     def update_pull_progress(self, done: int, total: int):
         """实时更新 pull 层级进度，如 '3/7层'。"""
         if total > 0:
             self.text_pull.value = f"pull:{done}/{total}层"
-            self.text_pull.color = "#5DA9FF"
+            self.text_pull.color = "primary"
         self._page.update()
 
     def update_save(self, status: str, ok: bool | None = None, path: str = "-"):
         self.text_save.value = f"save:{status}"
         self.text_path.value = path
         if ok is True:
-            self.text_save.color = ft.Colors.GREEN_400
-            self.text_path.color = ft.Colors.WHITE
+            self.text_save.color = ft.colors.GREEN_400
+            self.text_path.color = "onSurface"
         elif ok is False:
-            self.text_save.color = ft.Colors.RED_400
-            self.text_path.color = "#B0B0B0"
+            self.text_save.color = "error"
+            self.text_path.color = "onSurfaceVariant"
         else:
-            self.text_save.color = "#5DA9FF"
-            self.text_path.color = "#5DA9FF"
+            self.text_save.color = "primary"
+            self.text_path.color = "primary"
         self._page.update()
 
     def complete(self, success: bool):
         self.is_success = success
         if success:
-            self.icon_ctrl = ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_400, size=18)
+            self.icon_ctrl = ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.colors.GREEN_400, size=18)
         else:
-            self.icon_ctrl = ft.Icon(ft.Icons.ERROR, color=ft.Colors.RED_400, size=18)
+            self.icon_ctrl = ft.Icon(ft.Icons.ERROR, color="error", size=18)
         self.row_ctrl.controls[0] = self.icon_ctrl
         self._page.update()
 
@@ -366,8 +366,49 @@ def main(page: ft.Page) -> None:
     
     page.padding = 14
     page.scroll = ft.ScrollMode.HIDDEN
+    
+    # 浅色主题配准
+    page.theme = ft.Theme(
+        color_scheme=ft.ColorScheme(
+            surface="#F5F7FA",
+            on_surface="#1A202C",
+            on_surface_variant="#4A5568",
+            outline="#CBD5E0",
+            primary="#3182CE",
+            error="#E53E3E",
+        )
+    )
+    
+    # 深色主题配准
+    page.dark_theme = ft.Theme(
+        color_scheme=ft.ColorScheme(
+            surface="#070D16",
+            on_surface="#F4F9FF",
+            on_surface_variant="#8DAECC",
+            outline="#1A2E44",
+            primary="#5DA9FF",
+            error="#FF5252",
+        )
+    )
+    
     page.theme_mode = ft.ThemeMode.DARK
-    page.bgcolor = "#070D16"
+    page.bgcolor = "surface"
+
+    def toggle_theme(e):
+        if page.theme_mode == ft.ThemeMode.DARK:
+            page.theme_mode = ft.ThemeMode.LIGHT
+            theme_btn.icon = ft.Icons.DARK_MODE
+        else:
+            page.theme_mode = ft.ThemeMode.DARK
+            theme_btn.icon = ft.Icons.LIGHT_MODE
+        page.update()
+
+    theme_btn = ft.IconButton(
+        icon=ft.Icons.LIGHT_MODE,
+        icon_color="onSurfaceVariant",
+        tooltip="切换明暗主题",
+        on_click=toggle_theme,
+    )
 
     running = {"value": False}
     stop_event = threading.Event()
@@ -400,10 +441,10 @@ def main(page: ft.Page) -> None:
         value=default_download_dir,
         expand=True,
         text_size=13,
-        border_color="#38506F",
-        focused_border_color="#5DA9FF",
-        cursor_color="#9BCCFF",
-        color="#EAF4FF",
+        border_color="outline",
+        focused_border_color="primary",
+        cursor_color="primary",
+        color="onSurface",
     )
     manual_images_input = ft.TextField(
         multiline=True,
@@ -411,10 +452,10 @@ def main(page: ft.Page) -> None:
         value="",
         text_size=13,
         hint_text="例如:\nnginx:latest\nredis:7\nghcr.io/canner/wren-ui:0.32.2",
-        border_color="#38506F",
-        focused_border_color="#5DA9FF",
-        cursor_color="#9BCCFF",
-        color="#EAF4FF",
+        border_color="outline",
+        focused_border_color="primary",
+        cursor_color="primary",
+        color="onSurface",
     )
     concurrency_dropdown = ft.Dropdown(
         width=100,
@@ -432,15 +473,15 @@ def main(page: ft.Page) -> None:
         arch_rows.append(ft.Row(_arch_list[i:i+2], spacing=4))
     cleanup_check = ft.Checkbox(label="导出后删除本地镜像", value=True)
 
-    progress = ft.ProgressBar(value=0.0, expand=True, color="#53A7FF", bgcolor="#1A2637")
-    status_text = ft.Text("等待开始", size=14, color="#CFE6FF")
+    progress = ft.ProgressBar(value=0.0, expand=True, color="primary", bgcolor="surfaceVariant")
+    status_text = ft.Text("等待开始", size=14, color="onSurface")
     log_view = ft.ListView(spacing=4, auto_scroll=True)
     result_rows = ft.ListView(spacing=6, auto_scroll=True)
-    summary_text = ft.Text("成功: 0, 失败: 0", size=14, color="#DCEEFF")
-    loaded_count_text = ft.Text("镜像条目: 0", size=13, color="#9DB8D8")
+    summary_text = ft.Text("成功: 0, 失败: 0", size=14, color="onSurfaceVariant")
+    loaded_count_text = ft.Text("镜像条目: 0", size=13, color="onSurfaceVariant")
 
     def log(msg: str) -> None:
-        log_view.controls.append(ft.Text(msg, selectable=True, color="#D4E8FF", size=12))
+        log_view.controls.append(ft.Text(msg, selectable=True, color="onSurfaceVariant", size=12))
         page.update()
 
     def set_running(flag: bool) -> None:
@@ -448,11 +489,11 @@ def main(page: ft.Page) -> None:
         if flag:
             start_btn.text = "执行中..."
             start_btn.icon = ft.Icons.HOURGLASS_TOP
-            start_btn.style = ft.ButtonStyle(bgcolor="#0F4C8A", color="#7BB8F8", padding=20)
+            start_btn.style = ft.ButtonStyle(bgcolor="surfaceVariant", color="primary", padding=20)
         else:
             start_btn.text = "开始执行"
             start_btn.icon = ft.Icons.PLAY_ARROW
-            start_btn.style = ft.ButtonStyle(bgcolor="#1F7AE0", color="#FFFFFF", padding=20)
+            start_btn.style = ft.ButtonStyle(bgcolor="primary", color="surface", padding=20)
         start_btn.disabled = flag
         stop_btn.disabled = not flag
         page.update()
@@ -773,7 +814,7 @@ def main(page: ft.Page) -> None:
         icon=ft.Icons.PLAY_ARROW,
         on_click=start_run,
         expand=True,
-        style=ft.ButtonStyle(bgcolor="#1F7AE0", color="#FFFFFF", padding=20),
+        style=ft.ButtonStyle(bgcolor="primary", color="surface", padding=20),
     )
     stop_btn = ft.OutlinedButton(
         "停止",
@@ -781,7 +822,7 @@ def main(page: ft.Page) -> None:
         on_click=stop_run,
         disabled=True,
         expand=True,
-        style=ft.ButtonStyle(color="#FF5252", padding=20),
+        style=ft.ButtonStyle(color="error", padding=20),
     )
 
     async def pick_dir_click(_e: ft.ControlEvent) -> None:
@@ -795,26 +836,26 @@ def main(page: ft.Page) -> None:
         icon=ft.Icons.FOLDER_OPEN,
         disabled=not picker_supported,
         on_click=pick_dir_click,
-        style=ft.ButtonStyle(color="#BFD8F7"),
+        style=ft.ButtonStyle(color="primary"),
     )
     manual_images_input.on_change = refresh_image_count
 
     def open_about_dialog(_e):
         about_dialog = ft.AlertDialog(
-            title=ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color="#5DA9FF"), ft.Text("关于鲸舟 (ImagePorter)")]),
+            title=ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color="primary"), ft.Text("关于鲸舟 (ImagePorter)")]),
             content=ft.Column([
                 ft.Text("Docker 镜像跨设备传导与分发工作台", weight=ft.FontWeight.BOLD),
                 ft.Text("版本: v1.0.0"),
                 ft.Text("开源协议: MIT License"),
-                ft.Divider(color="#2E4258"),
+                ft.Divider(color="outline"),
                 ft.Text("本软件专为无缝离线部署场景打造，支持全平台的多架构交叉编译与并行处理。完全开源，免费使用。"),
                 ft.Row([
                     ft.TextButton("访问 GitHub", icon=ft.Icons.OPEN_IN_BROWSER, url="https://github.com/xuefei/ImagePorter"),
                 ], alignment=ft.MainAxisAlignment.END)
             ], tight=True, spacing=10),
-            bgcolor="#0E1725",
-            content_text_style=ft.TextStyle(color="#D3E7FF"),
-            title_text_style=ft.TextStyle(color="#FFFFFF"),
+            bgcolor="surfaceVariant",
+            content_text_style=ft.TextStyle(color="onSurfaceVariant"),
+            title_text_style=ft.TextStyle(color="onSurface"),
         )
         page.overlay.append(about_dialog)
         about_dialog.open = True
@@ -828,25 +869,26 @@ def main(page: ft.Page) -> None:
                 ft.Container(
                     padding=ft.Padding.symmetric(horizontal=20, vertical=16),
                     border_radius=8,
-                    bgcolor="#0C1A2A",
-                    border=ft.Border.all(1, "#1A2E44"),
+                    bgcolor="surfaceVariant",
+                    border=ft.Border.all(1, "outline"),
                     content=ft.Row(
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         controls=[
                             ft.Row([
-                                ft.Icon(ft.Icons.APPS, color="#0DB7ED", size=32),
-                                ft.Text("Docker 镜像拉取与导出", size=24, weight=ft.FontWeight.BOLD, color="#F4F9FF"),
+                                ft.Icon(ft.Icons.APPS, color="primary", size=32),
+                                ft.Text("Docker 镜像拉取与导出", size=24, weight=ft.FontWeight.BOLD, color="onSurface"),
                             ], spacing=12),
                             ft.Row([
                                 ft.Container(
                                     padding=ft.Padding.symmetric(horizontal=12, vertical=4),
                                     border_radius=12,
-                                    bgcolor="#122438",
-                                    content=ft.Text("离线包工作台", size=12, color="#8DAECC", weight=ft.FontWeight.W_500),
+                                    bgcolor="surface",
+                                    content=ft.Text("离线包工作台", size=12, color="onSurfaceVariant", weight=ft.FontWeight.W_500),
                                 ),
+                                theme_btn,
                                 ft.IconButton(
                                     icon=ft.Icons.INFO_OUTLINE,
-                                    icon_color="#8DAECC",
+                                    icon_color="onSurfaceVariant",
                                     tooltip="关于本开源软件",
                                     on_click=open_about_dialog,
                                 ),
@@ -862,32 +904,32 @@ def main(page: ft.Page) -> None:
                         ft.Container(
                             expand=1,
                             padding=16,
-                            border=ft.Border.all(1, "#2E4258"),
+                            border=ft.Border.all(1, "outline"),
                             border_radius=8,
-                            bgcolor="#0A121E",
+                            bgcolor="surfaceVariant",
                             content=ft.Column(
                                 expand=True,
                                 spacing=12,
                                 controls=[
                                     ft.Row([
-                                        ft.Icon(ft.Icons.SETTINGS, color="#5DA9FF", size=20),
-                                        ft.Text("任务配置", size=18, weight=ft.FontWeight.W_600, color="#EEF7FF"),
+                                        ft.Icon(ft.Icons.SETTINGS, color="primary", size=20),
+                                        ft.Text("任务配置", size=18, weight=ft.FontWeight.W_600, color="onSurface"),
                                     ], spacing=8),
-                                    ft.Divider(height=1, color="#2E4258"),
+                                    ft.Divider(height=1, color="outline"),
                                     
-                                    ft.Text("保存目录", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"),
+                                    ft.Text("保存目录", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ft.Row([output_input, pick_dir_btn], vertical_alignment=ft.CrossAxisAlignment.CENTER),
                                     
-                                    ft.Text("并发下载数", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"),
+                                    ft.Text("并发下载数", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ft.Row([concurrency_dropdown, cleanup_check], spacing=16, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                                     
-                                    ft.Text("容器架构（可多选）", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"),
+                                    ft.Text("容器架构（可多选）", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ft.Container(
                                         height=140,
-                                        border=ft.Border.all(1, "#2E4258"),
+                                        border=ft.Border.all(1, "outline"),
                                         border_radius=6,
                                         padding=8,
-                                        bgcolor="#0E1725",
+                                        bgcolor="surface",
                                         content=ft.Column(
                                             spacing=2,
                                             scroll=ft.ScrollMode.AUTO,
@@ -896,7 +938,7 @@ def main(page: ft.Page) -> None:
                                     ),
                                     
                                     ft.Row([
-                                        ft.Text("镜像输入", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"), 
+                                        ft.Text("镜像输入", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"), 
                                         loaded_count_text
                                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                                     manual_images_input,
@@ -908,18 +950,18 @@ def main(page: ft.Page) -> None:
                         ft.Container(
                             expand=3,
                             padding=16,
-                            border=ft.Border.all(1, "#2E4258"),
+                            border=ft.Border.all(1, "outline"),
                             border_radius=8,
-                            bgcolor="#0A121E",
+                            bgcolor="surfaceVariant",
                             content=ft.Column(
                                 expand=True,
                                 spacing=12,
                                 controls=[
                                     ft.Row([
-                                        ft.Icon(ft.Icons.MONITOR_HEART, color="#5DA9FF", size=20),
-                                        ft.Text("运行监控", size=18, weight=ft.FontWeight.W_600, color="#EEF7FF"),
+                                        ft.Icon(ft.Icons.MONITOR_HEART, color="primary", size=20),
+                                        ft.Text("运行监控", size=18, weight=ft.FontWeight.W_600, color="onSurface"),
                                     ], spacing=8),
-                                    ft.Divider(height=1, color="#2E4258"),
+                                    ft.Divider(height=1, color="outline"),
                                     
                                     ft.Row([
                                         status_text, 
@@ -929,30 +971,30 @@ def main(page: ft.Page) -> None:
                                     progress,
                                     
                                     ft.Row([
-                                        ft.Icon(ft.Icons.VIEW_LIST, color="#9DB8D8", size=16),
-                                        ft.Text("处理结果", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"),
+                                        ft.Icon(ft.Icons.VIEW_LIST, color="onSurfaceVariant", size=16),
+                                        ft.Text("处理结果", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ], spacing=6),
                                     ft.Container(
                                         expand=True,
                                         height=200,
-                                        border=ft.Border.all(1, "#2E4258"),
+                                        border=ft.Border.all(1, "outline"),
                                         border_radius=6,
                                         padding=8,
-                                        bgcolor="#0E1725",
+                                        bgcolor="surface",
                                         content=result_rows,
                                     ),
                                     
                                     ft.Row([
-                                        ft.Icon(ft.Icons.TERMINAL, color="#9DB8D8", size=16),
-                                        ft.Text("运行日志", size=14, weight=ft.FontWeight.W_500, color="#D3E7FF"),
+                                        ft.Icon(ft.Icons.TERMINAL, color="onSurfaceVariant", size=16),
+                                        ft.Text("运行日志", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ], spacing=6),
                                     ft.Container(
                                         expand=True,
                                         height=200,
-                                        border=ft.Border.all(1, "#2E4258"),
+                                        border=ft.Border.all(1, "outline"),
                                         border_radius=6,
                                         padding=8,
-                                        bgcolor="#0E1725",
+                                        bgcolor="surface",
                                         content=log_view,
                                     ),
                                 ],
