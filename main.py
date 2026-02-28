@@ -357,6 +357,13 @@ def main(page: ft.Page) -> None:
     page.window.height = 800
     page.window.min_width = 1200
     page.window.min_height = 760
+    
+    # 在 Flet >= 0.8X 版本中，window.center() 是协程。
+    # 如果 main 是同步函数，需要放入 page.run_task 执行
+    async def center_window():
+        await page.window.center()
+    page.run_task(center_window)
+    
     page.padding = 14
     page.scroll = ft.ScrollMode.HIDDEN
     page.theme_mode = ft.ThemeMode.DARK
@@ -386,8 +393,11 @@ def main(page: ft.Page) -> None:
         except Exception:
             picker_supported = False
 
+    import pathlib
+    default_download_dir = str(pathlib.Path.home() / "Downloads")
+
     output_input = ft.TextField(
-        value=".",
+        value=default_download_dir,
         expand=True,
         text_size=13,
         border_color="#38506F",
@@ -789,6 +799,27 @@ def main(page: ft.Page) -> None:
     )
     manual_images_input.on_change = refresh_image_count
 
+    def open_about_dialog(_e):
+        about_dialog = ft.AlertDialog(
+            title=ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, color="#5DA9FF"), ft.Text("关于鲸舟 (ImagePorter)")]),
+            content=ft.Column([
+                ft.Text("Docker 镜像跨设备传导与分发工作台", weight=ft.FontWeight.BOLD),
+                ft.Text("版本: v1.0.0"),
+                ft.Text("开源协议: MIT License"),
+                ft.Divider(color="#2E4258"),
+                ft.Text("本软件专为无缝离线部署场景打造，支持全平台的多架构交叉编译与并行处理。完全开源，免费使用。"),
+                ft.Row([
+                    ft.TextButton("访问 GitHub", icon=ft.Icons.OPEN_IN_BROWSER, url="https://github.com/xuefei/ImagePorter"),
+                ], alignment=ft.MainAxisAlignment.END)
+            ], tight=True, spacing=10),
+            bgcolor="#0E1725",
+            content_text_style=ft.TextStyle(color="#D3E7FF"),
+            title_text_style=ft.TextStyle(color="#FFFFFF"),
+        )
+        page.overlay.append(about_dialog)
+        about_dialog.open = True
+        page.update()
+
     page.add(
         ft.Column(
             expand=True,
@@ -806,12 +837,20 @@ def main(page: ft.Page) -> None:
                                 ft.Icon(ft.Icons.APPS, color="#0DB7ED", size=32),
                                 ft.Text("Docker 镜像拉取与导出", size=24, weight=ft.FontWeight.BOLD, color="#F4F9FF"),
                             ], spacing=12),
-                            ft.Container(
-                                padding=ft.Padding.symmetric(horizontal=12, vertical=4),
-                                border_radius=12,
-                                bgcolor="#122438",
-                                content=ft.Text("离线包工作台", size=12, color="#8DAECC", weight=ft.FontWeight.W_500),
-                            ),
+                            ft.Row([
+                                ft.Container(
+                                    padding=ft.Padding.symmetric(horizontal=12, vertical=4),
+                                    border_radius=12,
+                                    bgcolor="#122438",
+                                    content=ft.Text("离线包工作台", size=12, color="#8DAECC", weight=ft.FontWeight.W_500),
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.INFO_OUTLINE,
+                                    icon_color="#8DAECC",
+                                    tooltip="关于本开源软件",
+                                    on_click=open_about_dialog,
+                                ),
+                            ], spacing=16),
                         ],
                     ),
                 ),

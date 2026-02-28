@@ -30,8 +30,10 @@ git clone https://github.com/USER/ImagePorter.git
 cd ImagePorter
 ```
 
-2. 安装所需 Python 依赖：
+2. 安装与配置 Python 虚拟环境（推荐使用原生 `venv`，避免全局环境污染和后期打包臃肿）：
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 

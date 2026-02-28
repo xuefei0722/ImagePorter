@@ -11,6 +11,8 @@
    - *重要提示：安装后请务必打开运行一次，以接受许可协议并自动初始化命令行工具。*
 3. **CocoaPods**：版本需 1.16 或更高（用于编译依赖的插件）。
    ```bash
+   brew install cocoapods 
+   # 或 
    sudo gem install cocoapods
    ```
 4. **Flutter SDK**：Flet 底层依赖 Flutter 进行打包。如果你之前没有安装过 Flutter，`flet build` 命令在第一次运行时会自动为你下载和配置。
@@ -19,11 +21,29 @@
    softwareupdate --install-rosetta
    ```
 
-## 🚀 二、 执行打包命令
+## � 二、 开发环境与依赖配置（推荐 venv）
+
+Flet 在构建原生 `.app` 时，会将当前 Python 环境中所有的依赖打包。**如果环境臃肿，会导致构建出来的包体肥大。**
+强烈推荐使用原生 `venv` 作为隔离环境，绝不要使用 Conda 此类包含复杂底层库的系统：
+
+1. **创建并激活极简的虚拟环境**：
+   打开终端，在项目根目录下运行以下命令（不用担心提交，`.venv` 已被 `.gitignore` 保护）：
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. **安装核心依赖**：
+   在环境激活状态下执行：
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## �🚀 三、 执行打包命令
 
 我们在仓库中已经为你准备好了符合规范的目录结构（包含 `main.py`、`requirements.txt` 和 `assets/icon.png`）。
 
-1. 打开终端（Terminal），将工作目录切换到项目根目录。
+1. 打开终端（Terminal），将工作目录切换到项目根目录，**并确保上方你创建的 `.venv` 处于激活状态 (终端前缀显示为 `(.venv)`)**。
    ```bash
    cd /path/to/ImagePorter
    ```
