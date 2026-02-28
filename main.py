@@ -59,7 +59,7 @@ class TaskRow(ft.Container):
             
         self.text_pull.value = f"pull:{status}"
         if ok is True:
-            self.text_pull.color = ft.colors.GREEN_400
+            self.text_pull.color = "green_400"
         elif ok is False:
             self.text_pull.color = "error"
         else:
@@ -77,7 +77,7 @@ class TaskRow(ft.Container):
         self.text_save.value = f"save:{status}"
         self.text_path.value = path
         if ok is True:
-            self.text_save.color = ft.colors.GREEN_400
+            self.text_save.color = "green_400"
             self.text_path.color = "onSurface"
         elif ok is False:
             self.text_save.color = "error"
@@ -90,7 +90,7 @@ class TaskRow(ft.Container):
     def complete(self, success: bool):
         self.is_success = success
         if success:
-            self.icon_ctrl = ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.colors.GREEN_400, size=18)
+            self.icon_ctrl = ft.Icon(ft.Icons.CHECK_CIRCLE, color="green_400", size=18)
         else:
             self.icon_ctrl = ft.Icon(ft.Icons.ERROR, color="error", size=18)
         self.row_ctrl.controls[0] = self.icon_ctrl
