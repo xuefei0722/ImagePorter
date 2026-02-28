@@ -461,6 +461,11 @@ def main(page: ft.Page) -> None:
         width=100,
         value="3",
         text_size=13,
+        dense=True,
+        content_padding=ft.Padding(left=12, top=8, right=12, bottom=8),
+        border_color="outline",
+        focused_border_color="primary",
+        color="onSurface",
         options=[ft.dropdown.Option(str(i)) for i in range(1, 9)],
     )
     arch_checks: dict[str, ft.Checkbox] = {}
@@ -470,7 +475,10 @@ def main(page: ft.Page) -> None:
     _arch_list = list(arch_checks.values())
     arch_rows = []
     for i in range(0, len(_arch_list), 2):
-        arch_rows.append(ft.Row(_arch_list[i:i+2], spacing=4))
+        row_controls = []
+        for check in _arch_list[i:i+2]:
+            row_controls.append(ft.Container(content=check, expand=1))
+        arch_rows.append(ft.Row(row_controls, spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER))
     cleanup_check = ft.Checkbox(label="导出后删除本地镜像", value=True)
 
     progress = ft.ProgressBar(value=0.0, expand=True, color="primary", bgcolor="surfaceVariant")
@@ -861,6 +869,59 @@ def main(page: ft.Page) -> None:
         about_dialog.open = True
         page.update()
 
+    # Create Preferences Dialog
+    preferences_dialog = ft.AlertDialog(
+        modal=False,
+        title=ft.Row([
+            ft.Icon(ft.Icons.SETTINGS, color="primary"),
+            ft.Text("偏好设置", weight=ft.FontWeight.BOLD, color="onSurface", size=18)
+        ]),
+        content=ft.Container(
+            width=400,
+            padding=ft.Padding.symmetric(vertical=10),
+            content=ft.Column(
+                tight=True,
+                spacing=20,
+                controls=[
+                    ft.Column([
+                        ft.Text("存储目录", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
+                        ft.Text("所有导出的镜像 tar 离线包文件将默认保存在此处。", size=12, color="onSurfaceVariant"),
+                        ft.Row([output_input, pick_dir_btn], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ], spacing=8),
+                    ft.Divider(height=1, color="outline"),
+                    ft.Column([
+                        ft.Text("并发下载数", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
+                        ft.Text("设置同时拉取镜像的最大并发任务数量。数值过大可能导致网络拥塞或Docker服务响应缓慢。建议保持默认3-5个。", size=12, color="onSurfaceVariant"),
+                        concurrency_dropdown,
+                    ], spacing=8),
+                    ft.Divider(height=1, color="outline"),
+                    ft.Column([
+                        ft.Text("镜像清理与空间", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
+                        ft.Text("在镜像成功导出为 tar 文件后，自动从本地 Docker 中删除源镜像。这有助于节省磁盘空间，但需要注意该操作不可恢复。", size=12, color="onSurfaceVariant"),
+                        cleanup_check,
+                    ], spacing=8),
+                ]
+            )
+        ),
+        actions=[
+            ft.ElevatedButton("关闭", on_click=lambda e: close_preferences_dialog(e), color="surface", bgcolor="primary")
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        bgcolor="surface",
+        shape=ft.RoundedRectangleBorder(radius=8),
+    )
+
+    # Append it to overlay once
+    page.overlay.append(preferences_dialog)
+
+    def open_preferences_dialog(e):
+        preferences_dialog.open = True
+        page.update()
+
+    def close_preferences_dialog(e):
+        preferences_dialog.open = False
+        page.update()
+
     page.add(
         ft.Column(
             expand=True,
@@ -884,6 +945,12 @@ def main(page: ft.Page) -> None:
                                     border_radius=12,
                                     bgcolor="surface",
                                     content=ft.Text("离线包工作台", size=12, color="onSurfaceVariant", weight=ft.FontWeight.W_500),
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.SETTINGS,
+                                    icon_color="onSurfaceVariant",
+                                    tooltip="偏好设置",
+                                    on_click=open_preferences_dialog,
                                 ),
                                 theme_btn,
                                 ft.IconButton(
@@ -923,25 +990,20 @@ def main(page: ft.Page) -> None:
                                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                                     manual_images_input,
                                     
-                                    ft.Text("并发下载数", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
-                                    ft.Row([concurrency_dropdown, cleanup_check], spacing=16, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                                    
                                     ft.Text("容器架构（可多选）", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ft.Container(
-                                        height=140,
+                                        height=180,
                                         border=ft.Border.all(1, "outline"),
                                         border_radius=6,
                                         padding=8,
                                         bgcolor="surface",
                                         content=ft.Column(
                                             spacing=2,
+                                            alignment=ft.MainAxisAlignment.CENTER,
                                             scroll=ft.ScrollMode.AUTO,
                                             controls=arch_rows,
                                         ),
                                     ),
-                                    
-                                    ft.Text("保存目录", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
-                                    ft.Row([output_input, pick_dir_btn], vertical_alignment=ft.CrossAxisAlignment.CENTER),
                                     
                                     ft.Row([start_btn, stop_btn], spacing=12, alignment=ft.MainAxisAlignment.CENTER),
                                 ],
