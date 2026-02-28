@@ -917,8 +917,11 @@ def main(page: ft.Page) -> None:
                                     ], spacing=8),
                                     ft.Divider(height=1, color="outline"),
                                     
-                                    ft.Text("保存目录", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
-                                    ft.Row([output_input, pick_dir_btn], vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                                    ft.Row([
+                                        ft.Text("镜像名称", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"), 
+                                        loaded_count_text
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                    manual_images_input,
                                     
                                     ft.Text("并发下载数", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ft.Row([concurrency_dropdown, cleanup_check], spacing=16, vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -937,11 +940,8 @@ def main(page: ft.Page) -> None:
                                         ),
                                     ),
                                     
-                                    ft.Row([
-                                        ft.Text("镜像输入", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"), 
-                                        loaded_count_text
-                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                                    manual_images_input,
+                                    ft.Text("保存目录", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
+                                    ft.Row([output_input, pick_dir_btn], vertical_alignment=ft.CrossAxisAlignment.CENTER),
                                     
                                     ft.Row([start_btn, stop_btn], spacing=12, alignment=ft.MainAxisAlignment.CENTER),
                                 ],
@@ -971,20 +971,6 @@ def main(page: ft.Page) -> None:
                                     progress,
                                     
                                     ft.Row([
-                                        ft.Icon(ft.Icons.VIEW_LIST, color="onSurfaceVariant", size=16),
-                                        ft.Text("处理结果", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
-                                    ], spacing=6),
-                                    ft.Container(
-                                        expand=True,
-                                        height=200,
-                                        border=ft.Border.all(1, "outline"),
-                                        border_radius=6,
-                                        padding=8,
-                                        bgcolor="surface",
-                                        content=result_rows,
-                                    ),
-                                    
-                                    ft.Row([
                                         ft.Icon(ft.Icons.TERMINAL, color="onSurfaceVariant", size=16),
                                         ft.Text("运行日志", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
                                     ], spacing=6),
@@ -996,6 +982,20 @@ def main(page: ft.Page) -> None:
                                         padding=8,
                                         bgcolor="surface",
                                         content=log_view,
+                                    ),
+                                    
+                                    ft.Row([
+                                        ft.Icon(ft.Icons.VIEW_LIST, color="onSurfaceVariant", size=16),
+                                        ft.Text("处理结果", size=14, weight=ft.FontWeight.W_500, color="onSurfaceVariant"),
+                                    ], spacing=6),
+                                    ft.Container(
+                                        expand=True,
+                                        height=200,
+                                        border=ft.Border.all(1, "outline"),
+                                        border_radius=6,
+                                        padding=8,
+                                        bgcolor="surface",
+                                        content=result_rows,
                                     ),
                                 ],
                             ),
