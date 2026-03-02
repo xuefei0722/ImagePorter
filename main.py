@@ -183,10 +183,15 @@ class TaskRow(ft.Container):
 # --- 核心逻辑函数保持不变 (check_docker_available, run_cmd, etc.) ---
 # ... (为节省篇幅，假设 check_docker_available 到 docker_remove 的所有函数逻辑与原代码完全一致，未做修改) ...
 
-_env_cache = {"docker_ok": None, "docker_msg": "", "host_platform": None}
+_env_cache = {"docker_ok": None, "docker_msg": "", "host_platform": None, "docker_path": None}
 _CACHE_DIR = os.path.join(os.path.expanduser("~"), ".imageporter")
 _PLATFORM_CACHE_FILE = os.path.join(_CACHE_DIR, "host_platform.txt")
 _PREFS_FILE = os.path.join(_CACHE_DIR, "prefs.json")
+_DOCKER_PATH_HINTS = [
+    "/usr/local/bin/docker",
+    "/opt/homebrew/bin/docker",
+    "/Applications/Docker.app/Contents/Resources/bin/docker",
+]
 
 def load_theme_mode() -> ft.ThemeMode:
     try:
@@ -208,11 +213,45 @@ def save_theme_mode(mode: ft.ThemeMode) -> None:
     except Exception:
         pass
 
+def _build_exec_env() -> dict[str, str]:
+    env = dict(os.environ)
+    current_path = env.get("PATH", "")
+    path_items = current_path.split(":") if current_path else []
+    extras = [os.path.dirname(p) for p in _DOCKER_PATH_HINTS]
+    missing = [p for p in extras if p not in path_items]
+    if missing:
+        env["PATH"] = f"{current_path}:{':'.join(missing)}" if current_path else ":".join(missing)
+    env["DOCKER_CLI_HINTS"] = "false"
+    return env
+
+def _resolve_docker_path() -> str | None:
+    cached = _env_cache.get("docker_path")
+    if isinstance(cached, str) and cached:
+        return cached
+    which_path = shutil.which("docker", path=_build_exec_env().get("PATH"))
+    candidates = [which_path, *_DOCKER_PATH_HINTS]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        real = os.path.expanduser(candidate)
+        if os.path.isfile(real) and os.access(real, os.X_OK):
+            _env_cache["docker_path"] = real
+            return real
+    return None
+
+def _normalize_cmd(cmd: list[str]) -> list[str]:
+    if cmd and cmd[0] == "docker":
+        docker_path = _resolve_docker_path()
+        if docker_path:
+            return [docker_path, *cmd[1:]]
+    return cmd
+
 def check_docker_available() -> tuple[bool, str]:
     if _env_cache["docker_ok"] is True: return True, ""
-    if not shutil.which("docker"):
+    docker_path = _resolve_docker_path()
+    if not docker_path:
         _env_cache["docker_ok"] = False
-        _env_cache["docker_msg"] = "未找到 docker 命令"
+        _env_cache["docker_msg"] = "未找到 docker 命令（请确认 Docker Desktop 已安装并已启动）"
         return False, _env_cache["docker_msg"]
     _env_cache["docker_ok"] = True
     return True, ""
@@ -241,17 +280,33 @@ def validate_image_name(image: str) -> tuple[bool, str]:
     return True, ""
 
 def run_cmd(cmd: list[str], timeout: float | None = None) -> tuple[bool, str]:
+    normalized_cmd = _normalize_cmd(cmd)
     try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", timeout=timeout)
+        result = subprocess.run(
+            normalized_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+            timeout=timeout,
+            env=_build_exec_env(),
+        )
         return result.returncode == 0, (result.stdout or "") + (result.stderr or "")
     except Exception as e:
         return False, str(e)
 
 def _run_pty_docker(cmd: list[str], line_cb=None, stop_event: threading.Event | None = None) -> tuple[bool, str]:
     # 简化版 PTY 逻辑，保持原逻辑即可
+    normalized_cmd = _normalize_cmd(cmd)
     master_fd, slave_fd = pty.openpty()
     try:
-        proc = subprocess.Popen(cmd, stdin=slave_fd, stdout=slave_fd, stderr=subprocess.STDOUT, close_fds=True, env={**os.environ, "DOCKER_CLI_HINTS": "false"})
+        proc = subprocess.Popen(
+            normalized_cmd,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+            env=_build_exec_env(),
+        )
     except Exception as e:
         os.close(master_fd); os.close(slave_fd)
         return False, str(e)
