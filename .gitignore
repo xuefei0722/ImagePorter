@@ -66,3 +66,7 @@ logs/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Local backup
+main.py.backup
+test.py
