@@ -528,7 +528,7 @@ def main(page: ft.Page) -> None:
                             ft.TextButton(
                                 "访问 GitHub",
                                 icon=ft.Icons.OPEN_IN_BROWSER,
-                                url="https://github.com/xuefei/ImagePorter",
+                                url="https://github.com/xuefei0722/ImagePorter",
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.END,
