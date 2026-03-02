@@ -1,6 +1,6 @@
 # 鲸舟 (ImagePorter)
 
-![License](https://img.shields.io/github/license/xuefei0722/ImagePorter)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Flet](https://img.shields.io/badge/flet-latest-green.svg)
 
