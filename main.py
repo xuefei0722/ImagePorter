@@ -355,6 +355,17 @@ def main(page: ft.Page) -> None:
     page.window.width = 1200
     page.window.height = 800
     page.padding = 0  # 移除默认内边距，为了让侧边栏贴边
+
+    async def center_window_once_ready() -> None:
+        # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠。
+        try:
+            await page.window.center()
+            await asyncio.sleep(0.15)
+            await page.window.center()
+        except Exception:
+            pass
+
+    page.run_task(center_window_once_ready)
     
     # 配色方案优化：更清爽的蓝白灰
     page.theme = ft.Theme(

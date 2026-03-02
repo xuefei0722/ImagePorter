@@ -8,10 +8,11 @@
 
 ## 🌟 核心特性
 
-- **可视化多架构支持**：支持同时勾选并导出 `linux/amd64`、`linux/arm64` 等多种架构的镜像。
+- **可视化多架构支持**：支持同时勾选并导出 `amd64`、`arm64/v8`、`arm/v7` 等 Docker Hub 常见架构标识。
 - **并发任务引擎**：内置并发机制，支持同时 `pull` 和 `save` 多个镜像，显著提升离线打包效率。
-- **智能镜像校验**：自动校验输入镜像的合法性，剔除格式错误的条目；支持智能检测远端镜像可用的架构。
+- **可中止任务执行**：运行中可一键中止，界面状态与后台 Docker 子进程保持一致，不会“界面中止但后台继续”。
 - **实时日志与进度条**：使用 PTY 伪终端技术，完美捕获并展示 Docker 命令的层级（Layer）下载进度。
+- **主题切换与记忆**：支持亮色/暗色主题切换，并在重启后保留上次主题选择。
 - **跨平台桌面体验**：借助 Flet 与 Flutter 的力量，体验极其流畅的桌面端原生 UI 交互。
 
 ## 🚀 快速开始
@@ -26,7 +27,7 @@
 
 1. 克隆本仓库到本地：
 ```bash
-git clone https://github.com/USER/ImagePorter.git
+git clone https://github.com/xuefei/ImagePorter.git
 cd ImagePorter
 ```
 
@@ -48,9 +49,14 @@ flet run main.py
 
 👉 [**原生应用构建指南 (Build Guide)**](./docs/BUILD_GUIDE.md)
 
-## �� 贡献指南
+## 🤝 贡献指南
 
 我们非常欢迎以 Issue 或 Pull Request 的形式提交你的建议与代码改进。在提交 PR 之前，请确保您的代码风格符合标准的 Python 规范。
+
+## 📌 说明
+
+- `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.81.0`）。
+- Docker 依赖的是本机 Docker CLI，而不是 Python `docker` SDK 包。
 
 ## 📄 开源协议
 
