@@ -1,6 +1,6 @@
 # 鲸舟 (ImagePorter)
 
-![License](https://img.shields.io/github/license/xuefei/ImagePorter)
+![License](https://img.shields.io/github/license/xuefei0722/ImagePorter)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Flet](https://img.shields.io/badge/flet-latest-green.svg)
 
@@ -27,7 +27,7 @@
 
 1. 克隆本仓库到本地：
 ```bash
-git clone https://github.com/xuefei/ImagePorter.git
+git clone https://github.com/xuefei0722/ImagePorter.git
 cd ImagePorter
 ```
 
