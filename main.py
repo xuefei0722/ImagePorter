@@ -95,7 +95,7 @@ class TaskRow(ft.Container):
         
         super().__init__(
             content=self.row_ctrl,
-            padding=ft.padding.symmetric(horizontal=10, vertical=8),
+            padding=ft.Padding.symmetric(horizontal=10, vertical=8),
             border=ft.Border(bottom=ft.BorderSide(1, "outlineVariant")), # 仅保留底部分割线
             bgcolor="surface", # 纯白背景
         )
@@ -829,7 +829,7 @@ def main(page: ft.Page) -> None:
             progress_bar
         ], spacing=0),
         bgcolor="surface", # 浅白表面色，与侧边栏卡片呼应
-        padding=ft.padding.symmetric(horizontal=20, vertical=16),
+        padding=ft.Padding.symmetric(horizontal=20, vertical=16),
         border_radius=12,
         margin=ft.Margin(top=0, left=0, right=0, bottom=10) # 撑开与下方 Tab 的距离
     )
@@ -838,6 +838,21 @@ def main(page: ft.Page) -> None:
     log_view = ft.ListView(spacing=2, auto_scroll=True, expand=True, padding=10)
     # 结果视图
     result_rows = ft.ListView(spacing=0, auto_scroll=True, expand=True) # 移除间距，由 TaskRow 内部 Border 控制
+    task_empty_state = ft.Container(
+        expand=True,
+        alignment=ft.Alignment(0, 0),
+        content=ft.Column(
+            [
+                ft.Icon(ft.Icons.INBOX_OUTLINED, size=44, color="onSurfaceVariant"),
+                ft.Text("点击左侧“开始执行”来添加并处理镜像任务", size=14, color="onSurfaceVariant"),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=10,
+            tight=True,
+        ),
+        visible=True,
+    )
 
     # 日志面板（暗色终端风格）
     log_panel = ft.Container(
@@ -863,7 +878,7 @@ def main(page: ft.Page) -> None:
         margin=ft.Margin(top=10, left=0, right=0, bottom=0),
         border_radius=8,
         bgcolor="surface",
-        content=result_rows,
+        content=ft.Stack([result_rows, task_empty_state], expand=True),
         expand=True,
         visible=True, # 默认显示任务列表
     )
@@ -925,6 +940,11 @@ def main(page: ft.Page) -> None:
         tab_btn_log.style = ft.ButtonStyle(color="primary" if show_log else "onSurfaceVariant")
         tab_btn_task.style = ft.ButtonStyle(color="onSurfaceVariant" if show_log else "primary")
         return True
+
+    def _refresh_task_empty_state() -> None:
+        has_tasks = len(result_rows.controls) > 0
+        result_rows.visible = has_tasks
+        task_empty_state.visible = not has_tasks
 
     def _append_log_line(msg: str) -> None:
         from datetime import datetime as _dt
@@ -1005,6 +1025,7 @@ def main(page: ft.Page) -> None:
                         task_stats["steps"] = 0
                     task_rows.clear()
                     result_rows.controls.clear()
+                    _refresh_task_empty_state()
                     log_view.controls.clear()
                     status_title.value = "正在准备任务..."
                     _apply_summary_from_stats()
@@ -1024,6 +1045,7 @@ def main(page: ft.Page) -> None:
                         row = TaskRow(task["image"], task["platform"], page, None)
                         task_rows[tid] = row
                         result_rows.controls.append(row)
+                    _refresh_task_empty_state()
                     changed = True
                 elif event_type == "SHOW_TASK":
                     changed = _set_tab_visible(False) or changed
@@ -1393,4 +1415,4 @@ def main(page: ft.Page) -> None:
     page.run_task(ui_pump)
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.run(main)
