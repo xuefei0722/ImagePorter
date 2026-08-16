@@ -1,8 +1,9 @@
 # 鲸舟 (ImagePorter)
 
+[![CI](https://github.com/xuefei0722/ImagePorter/actions/workflows/ci.yml/badge.svg)](https://github.com/xuefei0722/ImagePorter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![Flet](https://img.shields.io/badge/flet-latest-green.svg)
+![Flet](https://img.shields.io/badge/flet-0.81.0-green.svg)
 
 > **ImagePorter (鲸舟)** 是一款基于 [Flet](https://flet.dev/) 构建的 Docker 镜像拉取与导出可视化工具。专为具有内网断网环境、需要频繁向离线环境传输 Docker 镜像的开发者设计。
 
@@ -35,12 +36,24 @@ cd ImagePorter
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
+
+# 仅运行应用
 pip install -r requirements.txt
+
+# 开发（含测试 / lint / 类型检查工具链）
+pip install -e ".[dev]"
 ```
 
 3. 启动应用：
 ```bash
 flet run main.py
+```
+
+4. 运行测试与质量检查（无需本机 Docker，测试全部为 mock 交互）：
+```bash
+python -m pytest tests/ -v --cov=imageporter --cov-fail-under=80
+ruff check .
+mypy
 ```
 
 ## 📦 构建为原生应用 (macOS / Windows / Linux)
@@ -55,8 +68,9 @@ flet run main.py
 
 ## 📌 说明
 
-- `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.81.0`）。
-- Docker 依赖的是本机 Docker CLI，而不是 Python `docker` SDK 包。
+- `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.81.0`）；依赖的单一来源为 `pyproject.toml`，两者保持同步。
+- Docker 依赖的是本机 Docker CLI，而不是 Python `docker` SDK 包；启动任务前会自动探测 Docker 守护进程是否在运行。
+- 层级（Layer）下载进度条基于 Unix PTY 伪终端捕获；Windows 下自动降级为逐行日志展示。
 
 ## 📄 开源协议
 
