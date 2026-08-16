@@ -22,6 +22,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 env/
 build/
 develop-eggs/
@@ -70,3 +74,4 @@ logs/
 # Local backup
 main.py.backup
 test.py
+.gstack/
