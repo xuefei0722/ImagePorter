@@ -25,7 +25,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build macOS app
-        run: flet build macos --icon assets/icon.png
+        run: flet build macos
 
       - name: Package .app bundle
         run: |
@@ -56,7 +56,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Windows app
-        run: flet build windows --icon assets/icon.png
+        run: flet build windows
 
       - name: Package build output
         shell: pwsh

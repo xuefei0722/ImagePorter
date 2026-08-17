@@ -52,7 +52,7 @@ Flet 在构建原生 `.app` 时，会将当前 Python 环境中所有的依赖�
 
 2. 运行 Flet 打包命令，并指定打包参数（如下指令会自动把图标注入）：
    ```bash
-   flet build macos --icon assets/icon.png
+   flet build macos
    ```
 
 > **注意：** 初次运行此命令可能会耗费 5~15 分钟不等。因为 Flet 会在后台下载对应的 Flutter 环境并进行漫长的首次构建。后续构建速度会大幅提升。
