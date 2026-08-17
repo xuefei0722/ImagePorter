@@ -25,7 +25,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build macOS app
-        run: flet build macos
+        run: flet build macos --yes
 
       - name: Package .app bundle
         run: |
@@ -56,7 +56,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build Windows app
-        run: flet build windows
+        env:
+          PYTHONUTF8: "1"  # flet 输出含 ● 等字符，Windows 控制台默认 cp1252 会崩溃
+        run: flet build windows --yes
 
       - name: Package build output
         shell: pwsh
