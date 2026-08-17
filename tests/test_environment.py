@@ -30,6 +30,13 @@ class TestSystemInfo(unittest.TestCase):
         self.assertTrue(info.machine)
         self.assertIn("·", info.display)
 
+    def test_machine_arch_normalized(self):
+        """系统行架构使用与 Docker 一致的 Hub 词汇（如 arm64/amd64）。"""
+        from imageporter.core.docker import normalize_arch
+
+        info = get_system_info()
+        self.assertEqual(info.machine, normalize_arch(info.machine))
+
 
 class TestFormatEnvironmentReport(unittest.TestCase):
     SYSTEM = SystemInfo(os_name="macOS", os_release="25.5.0", machine="arm64")

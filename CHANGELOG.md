@@ -20,6 +20,11 @@
 
 ### Changed
 
+- **架构命名归一**：系统行与 Docker 引擎行统一使用 Docker Hub 词汇
+  （`aarch64`→`arm64`、`x86_64`/`AMD64`→`amd64`、`i386/i686`→`386`），
+  消除"系统 arm64 vs 引擎 aarch64"的展示混淆；版本明细行标签改为
+  「引擎」并附悬停说明（Docker Desktop 守护进程运行于 Linux 虚拟机，
+  容器均为 Linux 环境，架构与系统行为同一 CPU）。
 - main.py 继续拆分（794 → 314 行）：明暗主题、左侧边栏、右侧面板分别外移至
   `ui/theme.py`、`ui/sidebar.py`（`SidebarControls` 控件束）、`ui/panels.py`
   （`MainPanels`）；Tab 切换与空状态刷新逻辑随面板内聚，行为保持等价。

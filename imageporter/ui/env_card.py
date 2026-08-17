@@ -127,7 +127,11 @@ class EnvironmentCard:
         self.docker_dot.color = "green"
         self.docker_state.value = "Docker 运行中"
         self.docker_state.color = "green"
-        self.docker_detail.value = f"服务端 {status.server_version} · 主机 {status.host_platform}"
+        self.docker_detail.value = f"服务端 {status.server_version} · 引擎 {status.host_platform}"
+        self.docker_detail.tooltip = (
+            "Docker Desktop 的守护进程运行于 Linux 虚拟机（OSType=linux），"
+            "容器均为 Linux 环境；架构与「系统」行为同一 CPU（命名已统一）"
+        )
         self.container.tooltip = (
             f"Docker CLI {status.cli_version}" if status.cli_version else None
         )

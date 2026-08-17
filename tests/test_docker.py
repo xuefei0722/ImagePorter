@@ -141,6 +141,25 @@ class TestCheckDockerAvailable(unittest.TestCase):
         self.assertTrue(check_docker_available()[0])
 
 
+class TestNormalizeArch(unittest.TestCase):
+    def test_aliases(self):
+        from imageporter.core.docker import normalize_arch
+        cases = {
+            "aarch64": "arm64",   # Linux 内核 → Docker Hub
+            "x86_64": "amd64",
+            "AMD64": "amd64",     # Windows 大小写归一
+            "i686": "386",
+            "arm64": "arm64",     # 已是通用名则不变
+        }
+        for raw, expected in cases.items():
+            self.assertEqual(normalize_arch(raw), expected, raw)
+
+    def test_passthrough_unknown(self):
+        from imageporter.core.docker import normalize_arch
+        self.assertEqual(normalize_arch("riscv64"), "riscv64")
+        self.assertEqual(normalize_arch("  arm/v7 "), "arm/v7")
+
+
 class TestGetHostPlatform(unittest.TestCase):
     def setUp(self):
         _env_cache["host_platform"] = None
@@ -158,6 +177,12 @@ class TestGetHostPlatform(unittest.TestCase):
     @patch("imageporter.core.docker.run_cmd", return_value=(True, "linux/arm64\n"))
     def test_success_cached(self, mock_run):
         self.assertEqual(get_host_platform(), "linux/arm64")
+        self.assertEqual(get_host_platform(), "linux/arm64")
+        self.assertEqual(mock_run.call_count, 1)
+
+    @patch("imageporter.core.docker.run_cmd", return_value=(True, "linux/aarch64\n"))
+    def test_arch_normalized_to_hub_vocab(self, mock_run):
+        """docker info 的内核命名（aarch64）应归一为 Docker Hub 词汇（arm64）。"""
         self.assertEqual(get_host_platform(), "linux/arm64")
         self.assertEqual(mock_run.call_count, 1)
 
@@ -190,7 +215,7 @@ class TestProbeDockerEnvironment(unittest.TestCase):
 
     @patch(
         "imageporter.core.docker.run_cmd",
-        side_effect=[(True, "Docker version 27.3.1, build b"), (True, "27.3.1|linux/arm64\n")],
+        side_effect=[(True, "Docker version 27.3.1, build b"), (True, "27.3.1|linux/aarch64\n")],
     )
     @patch("imageporter.core.docker._resolve_docker_path", return_value="/usr/bin/docker")
     def test_installed_and_running(self, _, mock_run):
@@ -198,7 +223,7 @@ class TestProbeDockerEnvironment(unittest.TestCase):
         self.assertEqual((status.installed, status.running), (True, True))
         self.assertEqual(status.cli_version, "27.3.1")
         self.assertEqual(status.server_version, "27.3.1")
-        self.assertEqual(status.host_platform, "linux/arm64")
+        self.assertEqual(status.host_platform, "linux/arm64")  # aarch64 已归一
         # 第二次调用应为合并版的 docker info（一次取服务端版本与主机平台）
         info_cmd = mock_run.call_args_list[1].args[0]
         self.assertIn("{{.ServerVersion}}", info_cmd[3])

@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from imageporter.constants import ENV_RETRY_INTERVAL
-from imageporter.core.docker import DockerEnvStatus, probe_docker_environment
+from imageporter.core.docker import DockerEnvStatus, normalize_arch, probe_docker_environment
 
 # platform.system() 原始值 → 展示名
 _OS_DISPLAY = {"Darwin": "macOS", "Windows": "Windows", "Linux": "Linux"}
@@ -41,12 +41,12 @@ class SystemInfo:
 
 
 def get_system_info() -> SystemInfo:
-    """采集当前系统信息（纯本地，无 IO）。"""
+    """采集当前系统信息（纯本地，无 IO）；架构名归一到 Docker Hub 词汇。"""
     raw = _platform.system()
     return SystemInfo(
         os_name=_OS_DISPLAY.get(raw, raw or "未知系统"),
         os_release=_platform.release() or "-",
-        machine=_platform.machine() or "-",
+        machine=normalize_arch(_platform.machine() or "-"),
     )
 
 

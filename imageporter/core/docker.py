@@ -163,7 +163,9 @@ def probe_docker_environment() -> DockerEnvStatus:
         timeout=DAEMON_PROBE_TIMEOUT,
     )
     if ok and "|" in out:
-        server_version, _, host_platform = out.strip().partition("|")
+        server_version, _, raw_platform = out.strip().partition("|")
+        os_type, _, arch = raw_platform.partition("/")
+        host_platform = f"{os_type}/{normalize_arch(arch)}" if arch else raw_platform
         return DockerEnvStatus(
             installed=True,
             running=True,
@@ -347,12 +349,25 @@ def _run_docker_interactive(
     return _run_pipe_docker(cmd, line_cb, stop_event)
 
 
-def get_host_platform() -> str:
-    """获取主机平台（OS/Architecture 格式）。
+# 架构别名归一：内核命名 → Docker Hub 通用命名（与界面架构胶囊词汇一致）
+_ARCH_ALIASES = {
+    "aarch64": "arm64", "x86_64": "amd64", "i386": "386",
+    "i686": "386", "amd64": "amd64", "arm64": "arm64",
+}
 
-    探测失败时返回 amd64 默认值但不缓存，下次调用自动重试，
-    避免 daemon 短暂无响应导致整会话平台判断错误。
+
+def normalize_arch(arch: str) -> str:
+    """归一化架构名到 Docker Hub 通用词汇（aarch64→arm64、x86_64→amd64）。
+
+    macOS 称 Apple Silicon 为 arm64，Linux 内核称 aarch64；Windows 返回
+    AMD64——三者实为同一架构族，统一到 Hub 词汇避免展示混淆。
     """
+    key = arch.strip().lower()
+    return _ARCH_ALIASES.get(key, key)
+
+
+def get_host_platform() -> str:
+    """获取主机平台（OS/Architecture 格式，架构名已归一）。"""
     cached = _env_cache.get("host_platform")
     if cached:
         return cached
@@ -360,7 +375,8 @@ def get_host_platform() -> str:
         ["docker", "info", "--format", "{{.OSType}}/{{.Architecture}}"]
     )
     if ok and out:
-        platform = out.strip()
+        os_type, _, arch = out.strip().partition("/")
+        platform = f"{os_type}/{normalize_arch(arch)}" if arch else out.strip()
         _env_cache["host_platform"] = platform
         return platform
     return "linux/amd64"

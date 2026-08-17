@@ -54,13 +54,14 @@ class TestEnvironmentCard(unittest.TestCase):
             DockerEnvStatus(
                 True, True,
                 cli_version="29.7.2", server_version="29.7.2",
-                host_platform="linux/aarch64",
+                host_platform="linux/arm64",
             )
         )
         self.assertEqual(card.docker_dot.color, "green")
         self.assertEqual(card.docker_state.value, "Docker 运行中")
         self.assertEqual(card.docker_state.color, "green")
-        self.assertEqual(card.docker_detail.value, "服务端 29.7.2 · 主机 linux/aarch64")
+        self.assertEqual(card.docker_detail.value, "服务端 29.7.2 · 引擎 linux/arm64")
+        self.assertIn("Linux 虚拟机", card.docker_detail.tooltip)  # 架构差异说明
         self.assertEqual(card.container.tooltip, "Docker CLI 29.7.2")
 
 
