@@ -28,10 +28,16 @@ class TestBuildSidebar(unittest.TestCase):
         theme_btn = ft.IconButton(icon=ft.Icons.DARK_MODE)
         start_btn = build_start_button(lambda e: None)
         self.sidebar = build_sidebar(
-            self.page, theme_btn, start_btn, ft.Container(),
+            self.page, theme_btn, start_btn,
             on_about_click=lambda e: None,
             on_arch_help_click=lambda e: None,
         )
+
+    def test_sidebar_scrollable(self):
+        """内容超出窗口高度时侧栏应可滚动（环境卡片遮挡修复）。"""
+        from imageporter.ui.sidebar import build_sidebar  # noqa: F401 - 已在模块级导入
+        top = self.sidebar.container.content.controls[0]
+        self.assertEqual(top.scroll, ft.ScrollMode.AUTO)
 
     def test_all_platform_chips_built(self):
         self.assertEqual(set(self.sidebar.arch_containers.keys()), set(PLATFORM_OPTIONS))

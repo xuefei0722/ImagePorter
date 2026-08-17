@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import threading
+import time
 from queue import Empty, Queue
 
 import flet as ft
@@ -29,8 +30,6 @@ from imageporter.constants import (
     EVENT_BATCH_LIMIT,
     MAX_LOG_LINES,
     UI_PUMP_INTERVAL,
-    WINDOW_HEIGHT,
-    WINDOW_WIDTH,
 )
 from imageporter.core.docker import (
     DockerEnvStatus,
@@ -51,7 +50,7 @@ from imageporter.ui.dialogs import (
     build_confirm_dialog,
     open_dialog,
 )
-from imageporter.ui.env_card import EnvironmentCard
+from imageporter.ui.env_bar import EnvBar
 from imageporter.ui.history_panel import HistoryPanel
 from imageporter.ui.images_panel import ImagesPanel
 from imageporter.ui.panels import (
@@ -69,7 +68,13 @@ from imageporter.ui.sidebar import (
 )
 from imageporter.ui.task_row import TaskRow
 from imageporter.ui.theme import build_dark_theme, build_light_theme
-from imageporter.utils.config import load_theme_mode, save_theme_mode
+from imageporter.utils.config import (
+    WindowState,
+    load_theme_mode,
+    load_window_state,
+    save_theme_mode,
+    save_window_state,
+)
 from imageporter.utils.history import (
     ExportRecord,
     add_record,
@@ -83,9 +88,35 @@ from imageporter.utils.opener import reveal_in_file_manager
 
 def main(page: ft.Page) -> None:
     page.title = "鲸舟 (ImagePorter)"
-    page.window.width = WINDOW_WIDTH
-    page.window.height = WINDOW_HEIGHT
     page.padding = 0  # 移除默认内边距，为了让侧边栏贴边
+
+    # 窗口状态：首次运行默认最大化，之后恢复上次记忆的状态与尺寸
+    window_state = load_window_state()
+    page.window.width = window_state.width
+    page.window.height = window_state.height
+    page.window.maximized = window_state.maximized
+
+    _last_window_save = 0.0
+
+    def _persist_window(_e=None) -> None:
+        """窗口事件节流落盘（事件密集时半秒内只写一次）。"""
+        nonlocal _last_window_save
+        now = time.monotonic()
+        if now - _last_window_save < 0.5:
+            return
+        _last_window_save = now
+        try:
+            save_window_state(
+                WindowState(
+                    maximized=bool(page.window.maximized),
+                    width=int(page.window.width or window_state.width),
+                    height=int(page.window.height or window_state.height),
+                )
+            )
+        except Exception:
+            pass
+
+    page.window.on_event(_persist_window)
 
     async def center_window_once_ready() -> None:
         # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠。
@@ -237,7 +268,7 @@ def main(page: ft.Page) -> None:
         env_watcher.maybe_start(status)  # 不可用时进入周期重试，恢复后自动变绿
 
     def launch_docker_flow() -> None:
-        env_card.set_waiting_launch()
+        env_bar.set_waiting_launch()
         if launch_docker_desktop():
             emit("LOG", msg="[提示] 已请求启动 Docker Desktop，等待守护进程就绪…")
             env_watcher.maybe_start(DockerEnvStatus(installed=True, running=False))
@@ -245,11 +276,11 @@ def main(page: ft.Page) -> None:
             emit("LOG", msg="[警告] 无法自动启动 Docker Desktop，请手动启动后点击 ↻ 重新检测")
             emit("ENV_STATUS", status=probe_docker_environment())
 
-    env_card = EnvironmentCard(
+    env_bar = EnvBar(
         on_refresh=lambda e=None: page.run_thread(refresh_env_status),
         on_launch=lambda e=None: page.run_thread(launch_docker_flow),
     )
-    env_card.set_system_info(get_system_info())
+    env_bar.set_system_info(get_system_info())
 
     # --- 逻辑控制函数 ---
 
@@ -375,7 +406,7 @@ def main(page: ft.Page) -> None:
                     )
                     changed = True
                 elif event_type == "ENV_STATUS":
-                    env_card.apply_docker_status(event["status"])
+                    env_bar.apply_docker_status(event["status"])
                     changed = True
                 elif event_type == "EXPORT_DONE":
                     record = ExportRecord(
@@ -428,9 +459,7 @@ def main(page: ft.Page) -> None:
     # --- 布局组装 ---
 
     btn_start = build_start_button(on_click_start)
-    sidebar = build_sidebar(
-        page, theme_btn, btn_start, env_card.container, open_about_dialog, open_arch_help
-    )
+    sidebar = build_sidebar(page, theme_btn, btn_start, open_about_dialog, open_arch_help)
 
     # 右侧内容布局（状态横幅卡片包裹标题/副标题/进度条，消除顶部留白空旷感）
     main_content = ft.Container(
@@ -447,10 +476,17 @@ def main(page: ft.Page) -> None:
     )
 
     page.add(
-        ft.Row(
-            controls=[sidebar.container, main_content],
+        ft.Column(
+            [
+                ft.Row(
+                    controls=[sidebar.container, main_content],
+                    expand=True,
+                    spacing=0,  # 无缝拼接
+                ),
+                env_bar.container,  # 底部环境状态栏
+            ],
+            spacing=0,
             expand=True,
-            spacing=0  # 无缝拼接
         )
     )
     page.run_task(ui_pump)

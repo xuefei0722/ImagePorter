@@ -108,7 +108,6 @@ def build_sidebar(
     page: ft.Page,
     theme_btn: ft.IconButton,
     btn_start: ft.Container,
-    env_card: ft.Container,
     on_about_click: Callable,
     on_arch_help_click: Callable,
 ) -> SidebarControls:
@@ -329,19 +328,20 @@ def build_sidebar(
     # 左侧栏布局：上部可滚动，底部按钮固定可见
     sidebar_top = ft.Column(
         spacing=18,
-        scroll=None,
+        scroll=ft.ScrollMode.AUTO,  # 内容超出窗口高度时自动出现滚动条
         expand=True,
         controls=[
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    ft.Row(
-                        [
-                            ft.Icon(ft.Icons.ANCHOR, color="primary"),
-                            ft.Text("鲸舟 ImagePorter", weight=ft.FontWeight.BOLD, size=18),
-                        ],
-                        spacing=8,
+                    ft.IconButton(
+                        icon=ft.Icons.ANCHOR,
+                        icon_size=22,
+                        width=26,
+                        height=26,
+                        tooltip="鲸舟 (ImagePorter)",
+                        style=ft.ButtonStyle(padding=0, color="primary"),
                     ),
                     ft.Row(
                         spacing=4,
@@ -406,9 +406,6 @@ def build_sidebar(
                 ft.Text("导出设置", weight=ft.FontWeight.BOLD, size=14, color="onSurfaceVariant"),
                 export_settings_card,
             ]),
-
-            # 环境状态卡片（自带标题与刷新按钮）
-            env_card,
         ],
     )
 
