@@ -90,27 +90,42 @@ def main(page: ft.Page) -> None:
     page.title = "鲸舟 (ImagePorter)"
     page.padding = 0  # 移除默认内边距，为了让侧边栏贴边
 
-    # 窗口状态：首次运行默认最大化，之后恢复上次记忆的状态与尺寸
+    # 窗口状态：首次运行默认最大化，之后恢复上次记忆的状态与尺寸。
+    # 注意：最大化时不再同时下达 width/height 与 center()——相互矛盾的
+    # 尺寸指令会让 macOS 桌面端渲染器停止重绘（表现为整窗黑屏）。
     window_state = load_window_state()
-    page.window.width = window_state.width
-    page.window.height = window_state.height
-    page.window.maximized = window_state.maximized
+    if window_state.maximized:
+        page.window.maximized = True
+    else:
+        page.window.width = window_state.width
+        page.window.height = window_state.height
 
     _last_window_save = 0.0
+    _ui_ready = False  # UI 挂载完成前忽略窗口事件，避免干扰首帧渲染
+    _restore_size = {"w": window_state.width, "h": window_state.height}  # 非最大化时尺寸
 
     def _persist_window(_e=None) -> None:
         """窗口事件节流落盘（事件密集时半秒内只写一次）。"""
         nonlocal _last_window_save
+        if not _ui_ready:
+            return
         now = time.monotonic()
         if now - _last_window_save < 0.5:
             return
         _last_window_save = now
         try:
+            maximized = bool(page.window.maximized)
+            if not maximized:
+                if page.window.width:
+                    _restore_size["w"] = int(page.window.width)
+                if page.window.height:
+                    _restore_size["h"] = int(page.window.height)
+            # 最大化时保存的是还原尺寸，不被全屏尺寸覆盖
             save_window_state(
                 WindowState(
-                    maximized=bool(page.window.maximized),
-                    width=int(page.window.width or window_state.width),
-                    height=int(page.window.height or window_state.height),
+                    maximized=maximized,
+                    width=_restore_size["w"],
+                    height=_restore_size["h"],
                 )
             )
         except Exception:
@@ -119,7 +134,10 @@ def main(page: ft.Page) -> None:
     page.window.on_event(_persist_window)
 
     async def center_window_once_ready() -> None:
-        # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠。
+        # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠；
+        # 最大化窗口跳过居中（见上方注释）。
+        if page.window.maximized:
+            return
         try:
             await page.window.center()
             await asyncio.sleep(0.15)
@@ -490,6 +508,7 @@ def main(page: ft.Page) -> None:
         )
     )
     page.run_task(ui_pump)
+    _ui_ready = True  # UI 挂载完成，此后窗口事件可持久化
     # 启动即后台探测 Docker 环境与本地镜像列表（不阻塞首屏渲染）
     page.run_thread(refresh_env_status)
     page.run_thread(refresh_local_images)

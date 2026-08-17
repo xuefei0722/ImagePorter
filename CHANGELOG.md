@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **桌面端（打包版）启动黑屏**：最大化状态下不再同时下达 `width/height` 与
+  `center()` 等相互矛盾的窗口指令——该竞态会使 macOS 桌面渲染器停止重绘，
+  表现为整窗黑屏（v1.4.0 回归，web 模式不受影响）；窗口事件持久化延迟到
+  UI 挂载完成后，最大化时保存还原尺寸而非全屏尺寸。
+
 ## [1.4.0] - 2026-08-17
 
 ### Fixed
@@ -131,6 +138,7 @@
 
 - 首个版本：Flet UI、多架构并发拉取导出、PTY 进度捕获、主题记忆、偏好设置。
 
+[1.4.1]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.1
 [1.4.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.0
 [1.3.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.3.0
 [1.2.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.2.0
