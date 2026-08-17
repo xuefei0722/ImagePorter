@@ -22,8 +22,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Build Tools",
 ]
-# 版本单一来源：imageporter/__init__.py 的 __version__
-dynamic = ["version"]
+# 版本号（发布时与 imageporter/__init__.py 同步更新；静态声明以便 flet build 读取）
+version = "1.4.2"
 dependencies = [
     "flet==0.81.0",
 ]
@@ -38,9 +38,6 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["imageporter*"]
-
-[tool.setuptools.dynamic]
-version = { attr = "imageporter.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

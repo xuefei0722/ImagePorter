@@ -114,6 +114,12 @@ def main(page: ft.Page) -> None:
             return
         _last_window_save = now
         try:
+            # 跨显示器移动会令 macOS 桌面渲染器丢帧（表现为黑块），
+            # 主动整页重绘以自愈
+            page.update()
+        except Exception:
+            pass
+        try:
             maximized = bool(page.window.maximized)
             if not maximized:
                 if page.window.width:
@@ -134,10 +140,9 @@ def main(page: ft.Page) -> None:
     page.window.on_event(_persist_window)
 
     async def center_window_once_ready() -> None:
-        # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠；
-        # 最大化窗口跳过居中（见上方注释）。
-        if page.window.maximized:
-            return
+        # 无条件居中：多显示器环境下系统可能把窗口恢复到副屏的旧位置，
+        # 而副屏渲染会失败（黑屏）——center() 把窗口拉回主屏中央。
+        # macOS 下窗口刚创建时尺寸/装饰栏可能尚未稳定，分两次居中更可靠。
         try:
             await page.window.center()
             await asyncio.sleep(0.15)
