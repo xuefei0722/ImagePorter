@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS .app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build macOS app
+        run: flet build macos --icon assets/icon.png
+
+      - name: Package .app bundle
+        run: |
+          cd build/macos
+          zip -qry "${{ github.workspace }}/ImagePorter-macos.zip" ImagePorter.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImagePorter-macos
+          path: ${{ github.workspace }}/ImagePorter-macos.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Windows app
+        run: flet build windows --icon assets/icon.png
+
+      - name: Package build output
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/windows/*" -DestinationPath "ImagePorter-windows.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImagePorter-windows
+          path: ImagePorter-windows.zip
+          if-no-files-found: error
+
+  release:
+    name: Create release & attach artifacts
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" \
+            --title "ImagePorter $TAG" \
+            --generate-notes \
+            ImagePorter-macos.zip ImagePorter-windows.zip
