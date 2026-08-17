@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-17
+
 ### Fixed
 
 - **侧边栏内容遮挡**：侧栏上部区域启用滚动（`scroll=AUTO`，修复环境卡片被
@@ -129,5 +131,6 @@
 
 - 首个版本：Flet UI、多架构并发拉取导出、PTY 进度捕获、主题记忆、偏好设置。
 
+[1.4.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.0
 [1.3.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.3.0
 [1.2.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.2.0
