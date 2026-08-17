@@ -6,6 +6,7 @@ NOTE: These tests mock Docker interactions; no real Docker daemon required.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import threading
 import unittest
@@ -15,6 +16,7 @@ from unittest.mock import MagicMock, patch
 # The module does conditional `import pty` which is fine.
 from imageporter.core.docker import (
     _ANSI_RE,
+    _HAS_PTY,
     _build_exec_env,
     _env_cache,
     _normalize_cmd,
@@ -64,21 +66,23 @@ class TestNormalizeCmd(unittest.TestCase):
 
 
 class TestBuildTarPath(unittest.TestCase):
+    """路径断言使用 os.path.join 以兼容 Windows 分隔符。"""
+
     def test_simple(self):
         path = build_tar_path("nginx:latest", "linux/amd64", "/tmp/out")
-        self.assertEqual(path, "/tmp/out/nginx_latest_linux_amd64.tar")
+        self.assertEqual(path, os.path.join("/tmp/out", "nginx_latest_linux_amd64.tar"))
 
     def test_no_tag(self):
         path = build_tar_path("nginx", "linux/arm64", "/tmp/out")
-        self.assertEqual(path, "/tmp/out/nginx_latest_linux_arm64.tar")
+        self.assertEqual(path, os.path.join("/tmp/out", "nginx_latest_linux_arm64.tar"))
 
     def test_registry_prefix(self):
         path = build_tar_path("ghcr.io/owner/app:v1", "linux/amd64", "/output")
-        self.assertEqual(path, "/output/ghcr.io_owner_app_v1_linux_amd64.tar")
+        self.assertEqual(path, os.path.join("/output", "ghcr.io_owner_app_v1_linux_amd64.tar"))
 
     def test_ends_with_tar(self):
         path = build_tar_path("redis:7", "linux/amd64", "/home/user/exports")
-        self.assertTrue(path.startswith("/home/user/exports/"))
+        self.assertTrue(path.startswith(os.path.join("/home/user/exports", "")))
         self.assertTrue(path.endswith(".tar"))
 
 
@@ -283,6 +287,7 @@ class TestRunDockerInteractive(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("cb-line", lines)
 
+    @unittest.skipIf(not _HAS_PTY, "行内 \\r 进度覆写是 PTY 专属行为（Windows 走 PIPE 降级）")
     def test_carriage_return_progress_keeps_last_segment(self):
         """PTY 行内 \\r 进度覆写应保留最后一段非空内容（CRLF 丢行修复的回归防护）。"""
         cmd = [sys.executable, "-c", "print('45%\\r78%')"]
@@ -335,9 +340,10 @@ class TestDockerWrappers(unittest.TestCase):
         from imageporter.core.docker import docker_save
         ok, path, _ = docker_save("nginx", "linux/amd64", "/tmp/out")
         self.assertTrue(ok)
-        self.assertEqual(path, "/tmp/out/nginx_latest_linux_amd64.tar")
+        expected = os.path.join("/tmp/out", "nginx_latest_linux_amd64.tar")
+        self.assertEqual(path, expected)
         mock_run.assert_called_once_with(
-            ["docker", "save", "-o", "/tmp/out/nginx_latest_linux_amd64.tar", "nginx"],
+            ["docker", "save", "-o", expected, "nginx"],
             None,
             stop_event=None,
         )

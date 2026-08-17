@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import tempfile
 import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +19,7 @@ def make_config(**overrides) -> RunConfig:
     defaults = dict(
         images_raw="nginx",
         platforms=["linux/amd64"],
-        output_dir="/tmp",
+        output_dir=tempfile.gettempdir(),  # 跨平台保证存在
         concurrency=2,
         cleanup=False,
     )
