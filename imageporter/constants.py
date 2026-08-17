@@ -23,6 +23,9 @@ MIN_CONCURRENCY = 1
 DAEMON_PROBE_TIMEOUT = 8.0
 ENV_RETRY_INTERVAL = 10.0
 
+# --- 导出压缩 ---
+GZIP_COMPRESS_LEVEL = 6
+
 # --- 文件与缓存路径 ---
 CACHE_DIR = os.path.join(os.path.expanduser("~"), ".imageporter")
 PREFS_FILE = os.path.join(CACHE_DIR, "prefs.json")

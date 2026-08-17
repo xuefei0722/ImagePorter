@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 import threading
 import unittest
 from unittest.mock import MagicMock, patch
@@ -418,7 +419,7 @@ class TestDockerWrappers(unittest.TestCase):
     @patch("imageporter.core.docker._run_docker_interactive", return_value=(True, "ok"))
     def test_docker_save_command(self, mock_run):
         from imageporter.core.docker import docker_save
-        ok, path, _ = docker_save("nginx", "linux/amd64", "/tmp/out")
+        ok, path, _, raw_size = docker_save("nginx", "linux/amd64", "/tmp/out")
         self.assertTrue(ok)
         expected = os.path.join("/tmp/out", "nginx_latest_linux_amd64.tar")
         self.assertEqual(path, expected)
@@ -427,6 +428,60 @@ class TestDockerWrappers(unittest.TestCase):
             None,
             stop_event=None,
         )
+        self.assertEqual(raw_size, 0)  # 未压缩路径的 raw_size 由 getsize 补充，mock 下为 0
+
+    @patch("imageporter.core.docker._run_save_gzip", return_value=(True, "", 4096))
+    def test_docker_save_compressed(self, mock_gzip_save):
+        from imageporter.core.docker import docker_save
+        ok, path, _, raw_size = docker_save("nginx", "linux/amd64", "/tmp/out", compress=True)
+        self.assertTrue(ok)
+        self.assertEqual(path, os.path.join("/tmp/out", "nginx_latest_linux_amd64.tar.gz"))
+        self.assertEqual(raw_size, 4096)
+        mock_gzip_save.assert_called_once_with(
+            ["docker", "save", "nginx"],
+            os.path.join("/tmp/out", "nginx_latest_linux_amd64.tar.gz"),
+            stop_event=None,
+        )
+
+    def test_build_tar_path_compressed_suffix(self):
+        path = build_tar_path("nginx", "linux/amd64", "/tmp/out", compressed=True)
+        self.assertTrue(path.endswith("nginx_latest_linux_amd64.tar.gz"))
+        path_plain = build_tar_path("nginx", "linux/amd64", "/tmp/out")
+        self.assertTrue(path_plain.endswith(".tar"))
+
+
+class TestRunSaveGzip(unittest.TestCase):
+    """流式 gzip 保存：用真实短命子进程模拟 docker save 输出。"""
+
+    def test_streams_and_compresses(self):
+        import gzip as gzip_mod
+
+        from imageporter.core.docker import _run_save_gzip
+        payload = b"A" * (300 * 1024)  # 超过单块读取，覆盖多块循环
+        cmd = [sys.executable, "-c",
+               "import sys; sys.stdout.buffer.write(b'A' * (300 * 1024))"]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "out.tar.gz")
+            ok, err, raw_size = _run_save_gzip(cmd, out)
+            self.assertTrue(ok, err)
+            self.assertEqual(raw_size, len(payload))
+            with gzip_mod.open(out, "rb") as f:
+                self.assertEqual(f.read(), payload)
+
+    def test_stop_event_terminates(self):
+        from imageporter.core.docker import _run_save_gzip
+        stop = threading.Event()
+        stop.set()
+        cmd = [sys.executable, "-c", "import time; time.sleep(30)"]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, "partial.tar.gz")
+            ok, err, raw_size = _run_save_gzip(cmd, out, stop_event=stop)
+            self.assertFalse(ok)
+
+    def test_popen_failure(self):
+        from imageporter.core.docker import _run_save_gzip
+        ok, err, raw_size = _run_save_gzip(["/nonexistent/binary/xyz"], "/tmp/never.tar.gz")
+        self.assertFalse(ok)
 
     @patch("imageporter.core.docker.run_cmd", return_value=(True, "ok"))
     def test_docker_remove_command(self, mock_run):

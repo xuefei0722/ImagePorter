@@ -34,6 +34,7 @@ from imageporter.core.parser import (
     parse_multiline_images,
     validate_image_name,
 )
+from imageporter.utils.history import human_file_size
 
 EmitFn = Callable[..., None]
 
@@ -58,6 +59,7 @@ class RunConfig:
     output_dir: str
     concurrency: int = 3
     cleanup: bool = True
+    compress: bool = True  # gzip 流式压缩导出为 .tar.gz
 
 
 @dataclass
@@ -261,6 +263,21 @@ class RunEngine:
 
         return _on_line
 
+    def _export_success_log(self, tar_path: str, raw_size: int) -> str:
+        """构造导出成功日志；压缩模式下附原始体积与节省比例。"""
+        base = f"[成功] 导出: {tar_path}"
+        if not self.config.compress or raw_size <= 0:
+            return base
+        try:
+            final_size = os.path.getsize(tar_path)
+        except OSError:
+            return base
+        saved_pct = round((1 - final_size / raw_size) * 100)
+        return (
+            f"{base}（{human_file_size(final_size)}，"
+            f"原始 {human_file_size(raw_size)}，节省 {saved_pct}%）"
+        )
+
     def _process_image(self, image: str, task_items: list[tuple[str, str]]) -> None:
         """处理单个镜像的所有目标平台（同一镜像内串行，避免同 tag 自竞争）。"""
         for platform, task_id in task_items:
@@ -298,14 +315,18 @@ class RunEngine:
             self._summary()
 
             self.emit("TASK_SAVE_STATUS", task_id=task_id, status="导出中...")
-            save_ok, tar_path, _ = docker_save(
-                image, platform, self.config.output_dir, stop_event=self.stop_event
+            save_ok, tar_path, _, raw_size = docker_save(
+                image,
+                platform,
+                self.config.output_dir,
+                stop_event=self.stop_event,
+                compress=self.config.compress,
             )
 
             if save_ok:
                 self.emit("TASK_SAVE_STATUS", task_id=task_id, status="导出完成", ok=True, path=tar_path)
                 self.emit("TASK_COMPLETE", task_id=task_id, success=True)
-                self.emit("LOG", msg=f"[成功] 导出: {tar_path}")
+                self.emit("LOG", msg=self._export_success_log(tar_path, raw_size))
                 # 导出成功 → 通知 UI 层落档历史记录
                 self.emit(
                     "EXPORT_DONE",

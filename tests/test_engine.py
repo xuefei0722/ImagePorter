@@ -64,7 +64,7 @@ class PatchedDockerTestCase(unittest.TestCase):
         self.mock_host = MagicMock(return_value="linux/amd64")
         self.mock_choose = MagicMock(side_effect=lambda image, selected, host: (list(selected), ""))
         self.pull = MagicMock(return_value=(True, "pull done"))
-        self.save = MagicMock(return_value=(True, "/tmp/out.tar", "save done"))
+        self.save = MagicMock(return_value=(True, "/tmp/out.tar", "save done", 8192))
         self.remove = MagicMock(return_value=None)
         patchers = [
             patch("imageporter.core.engine.check_docker_available", self.mock_check),
@@ -118,6 +118,29 @@ class TestRunEngineHappyPath(PatchedDockerTestCase):
         Recorder().run(make_config(images_raw="nginx\nredis"))
         self.assertEqual(self.pull.call_count, 2)
         self.assertEqual(self.save.call_count, 2)
+
+    def test_compress_passthrough_default_on(self):
+        """RunConfig.compress 默认开启并透传 docker_save。"""
+        Recorder().run(make_config())
+        self.assertTrue(self.save.call_args.kwargs["compress"])
+
+    def test_compress_passthrough_disabled(self):
+        Recorder().run(make_config(compress=False))
+        self.assertFalse(self.save.call_args.kwargs["compress"])
+
+    def test_compressed_success_log_includes_ratio(self):
+        """压缩模式成功日志应包含原始体积与节省比例。"""
+        with patch("imageporter.core.engine.os.path.getsize", return_value=4096):
+            rec = Recorder().run(make_config())  # raw_size=8192, final=4096
+        success_logs = [m for m in rec.log_messages() if m.startswith("[成功] 导出")]
+        self.assertTrue(success_logs)
+        self.assertIn("节省 50%", success_logs[0])
+
+    def test_uncompressed_success_log_has_no_ratio(self):
+        with patch("imageporter.core.engine.os.path.getsize", return_value=4096):
+            rec = Recorder().run(make_config(compress=False))
+        success_logs = [m for m in rec.log_messages() if m.startswith("[成功] 导出")]
+        self.assertEqual(success_logs, ["[成功] 导出: /tmp/out.tar"])
 
 
 class TestRunEngineValidation(PatchedDockerTestCase):
@@ -209,9 +232,9 @@ class TestRunEngineStopSemantics(PatchedDockerTestCase):
         self.assertIn("任务已中止", rec.last_payload("STATUS")["title"])
 
     def test_stop_during_save_removes_partial_tar(self):
-        def stopped_save(image, platform, output_dir, line_cb=None, stop_event=None):
+        def stopped_save(image, platform, output_dir, line_cb=None, stop_event=None, compress=False):
             stop_event.set()
-            return False, "/tmp/partial.tar", "stopped"
+            return False, "/tmp/partial.tar", "stopped", 0
 
         self.save.side_effect = stopped_save
         with patch("imageporter.core.engine.os.path.exists", return_value=True), \

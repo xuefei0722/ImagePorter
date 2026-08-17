@@ -30,6 +30,7 @@ class SidebarControls:
     arch_containers: dict[str, ft.Container]
     concurrency_text: ft.Text
     cleanup_switch: ft.Switch
+    compress_switch: ft.Switch
     container: ft.Container
 
     def selected_platforms(self) -> list[str]:
@@ -212,6 +213,7 @@ def build_sidebar(
         concurrency_value_text.update()
 
     cleanup_switch = ft.Switch(value=True, scale=0.7, active_color="primary")
+    compress_switch = ft.Switch(value=True, scale=0.7, active_color="primary")
 
     export_settings_card = ft.Container(
         bgcolor="surface",
@@ -295,7 +297,20 @@ def build_sidebar(
                     ]
                 ),
 
-                # --- 3. 自动清理 ---
+                # --- 3. 压缩导出 ---
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    controls=[
+                        ft.Column([
+                            ft.Text("压缩导出", size=13, color="onSurface"),
+                            ft.Text("gzip 压缩为 .tar.gz，docker load 可直接加载", size=10, color="onSurfaceVariant"),
+                        ], spacing=0),
+                        compress_switch
+                    ]
+                ),
+
+                # --- 4. 自动清理 ---
                 ft.Row(
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -417,5 +432,6 @@ def build_sidebar(
         arch_containers=arch_containers,
         concurrency_text=concurrency_value_text,
         cleanup_switch=cleanup_switch,
+        compress_switch=compress_switch,
         container=sidebar,
     )

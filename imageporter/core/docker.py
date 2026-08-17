@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -24,6 +25,7 @@ else:
 from imageporter.constants import (
     DAEMON_PROBE_TIMEOUT,
     DOCKER_PATH_HINTS,
+    GZIP_COMPRESS_LEVEL,
     READ_BUFFER_SIZE,
     SELECT_TIMEOUT,
 )
@@ -428,14 +430,103 @@ def choose_platforms(
     return matched if matched else selected, ""
 
 
-def build_tar_path(image: str, platform: str, output_dir: str) -> str:
-    """根据镜像名、平台和输出目录构建 .tar 文件路径。"""
+def build_tar_path(image: str, platform: str, output_dir: str, compressed: bool = False) -> str:
+    """根据镜像名、平台和输出目录构建导出文件路径（.tar 或 .tar.gz）。"""
     name = image.split(":")[0]
     tag = image.split(":")[1] if ":" in image else "latest"
+    suffix = ".tar.gz" if compressed else ".tar"
     return os.path.join(
         output_dir,
-        f"{name.replace('/', '_')}_{tag}_{platform.replace('/', '_')}.tar",
+        f"{name.replace('/', '_')}_{tag}_{platform.replace('/', '_')}{suffix}",
     )
+
+
+def _terminate_proc(proc: subprocess.Popen) -> None:
+    """尽力终止子进程：terminate → 等 1s → kill。"""
+    try:
+        proc.terminate()
+    except Exception:
+        pass
+    try:
+        proc.wait(timeout=1.0)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def _run_save_gzip(
+    cmd: list[str],
+    out_path: str,
+    stop_event: threading.Event | None = None,
+) -> tuple[bool, str, int]:
+    """流式执行导出命令并 gzip 压缩写入 out_path。
+
+    docker save 的 tar 流直接喂给 gzip（等价 `docker save | gzip > x.tar.gz`），
+    峰值磁盘占用仅为最终压缩文件。读取放在独立线程、主循环轮询停止事件，
+    确保静默阶段也能及时中止。返回 (ok, 错误文本, 原始字节数)。
+    """
+    normalized_cmd = _normalize_cmd(cmd)
+    try:
+        proc = subprocess.Popen(
+            normalized_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,  # save 的错误输出很小，结束后统一读取
+            env=_build_exec_env(),
+        )
+    except Exception as e:
+        return False, str(e), 0
+    assert proc.stdout is not None and proc.stderr is not None
+    stdout_io = proc.stdout
+    stderr_io = proc.stderr
+
+    chunk_queue: Queue = Queue()
+
+    def _reader() -> None:
+        try:
+            while True:
+                chunk = stdout_io.read(READ_BUFFER_SIZE)
+                if not chunk:
+                    break
+                chunk_queue.put(chunk)
+        finally:
+            chunk_queue.put(None)  # EOF 哨兵
+
+    reader = threading.Thread(target=_reader, daemon=True)
+    reader.start()
+
+    raw_size = 0
+    stopped = False
+    try:
+        with open(out_path, "wb") as raw_file, gzip.GzipFile(
+            fileobj=raw_file, mode="wb", compresslevel=GZIP_COMPRESS_LEVEL, mtime=0
+        ) as gz:
+            while True:
+                if stop_event is not None and stop_event.is_set():
+                    stopped = True
+                    _terminate_proc(proc)
+                    break
+                try:
+                    chunk = chunk_queue.get(timeout=SELECT_TIMEOUT)
+                except Empty:
+                    # 暂无数据：进程与读线程均已结束则收尾，否则继续轮询
+                    if proc.poll() is not None and not reader.is_alive():
+                        break
+                    continue
+                if chunk is None:
+                    break
+                raw_size += len(chunk)
+                gz.write(chunk)
+    except Exception as e:
+        _terminate_proc(proc)
+        return False, str(e), raw_size
+    err_text = (stderr_io.read() or b"").decode("utf-8", errors="replace").strip()
+    stdout_io.close()
+    stderr_io.close()
+    proc.wait()
+    ok = proc.returncode == 0 and not stopped
+    return ok, err_text, raw_size
 
 
 def docker_pull(
@@ -458,15 +549,31 @@ def docker_save(
     output_dir: str,
     line_cb=None,
     stop_event: threading.Event | None = None,
-) -> tuple[bool, str, str]:
-    """将 Docker 镜像导出为 .tar 文件。"""
-    path = build_tar_path(image, platform, output_dir)
+    compress: bool = False,
+) -> tuple[bool, str, str, int]:
+    """将 Docker 镜像导出为归档文件。
+
+    compress=False：docker save -o 生成 .tar（走 PTY/PIPE 交互路径）。
+    compress=True ：docker save 流式输出经 gzip 生成 .tar.gz，目标机
+    `docker load -i` 可直接加载，无需先解压。
+    返回 (ok, path, 输出文本, 原始字节数)。
+    """
+    path = build_tar_path(image, platform, output_dir, compressed=compress)
+    if compress:
+        ok, out, raw_size = _run_save_gzip(["docker", "save", image], path, stop_event=stop_event)
+        return ok, path, out, raw_size
     ok, out = _run_docker_interactive(
         ["docker", "save", "-o", path, image],
         line_cb,
         stop_event=stop_event,
     )
-    return ok, path, out
+    raw_size = 0
+    if ok:
+        try:
+            raw_size = os.path.getsize(path)
+        except OSError:
+            raw_size = 0
+    return ok, path, out, raw_size
 
 
 def docker_remove(image: str) -> None:

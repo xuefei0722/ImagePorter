@@ -406,6 +406,7 @@ def main(page: ft.Page) -> None:
             output_dir=sidebar.output_input.value or "",
             concurrency=int(sidebar.concurrency_text.value or "3"),
             cleanup=sidebar.cleanup_switch.value,
+            compress=sidebar.compress_switch.value,
         )
         RunEngine(config, emit, stop_event).run()
         # 运行结束后刷新环境状态（覆盖运行期间 Docker 被启停的情况）

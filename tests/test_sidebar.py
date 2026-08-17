@@ -61,6 +61,7 @@ class TestBuildSidebar(unittest.TestCase):
     def test_concurrency_and_cleanup_defaults(self):
         self.assertEqual(self.sidebar.concurrency_text.value, "3")
         self.assertTrue(self.sidebar.cleanup_switch.value)
+        self.assertTrue(self.sidebar.compress_switch.value)  # 压缩导出默认开启
 
     def test_images_input_is_multiline(self):
         self.assertTrue(self.sidebar.images_input.multiline)
