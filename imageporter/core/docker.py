@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from dataclasses import dataclass
 from queue import Empty, Queue
 from typing import Any
 
@@ -125,6 +126,52 @@ def run_cmd(cmd: list[str], timeout: float | None = None) -> tuple[bool, str]:
         return result.returncode == 0, (result.stdout or "") + (result.stderr or "")
     except Exception as e:
         return False, str(e)
+
+
+@dataclass(frozen=True)
+class DockerEnvStatus:
+    """Docker 环境探测结果（用于状态卡片展示与 --check-env 自检）。"""
+
+    installed: bool
+    running: bool
+    cli_version: str = ""
+    server_version: str = ""
+    host_platform: str = ""
+
+
+_CLI_VERSION_RE = re.compile(r"Docker version\s+([^\s,]+)")
+
+
+def _extract_cli_version(output: str) -> str:
+    """从 `docker --version` 输出提取版本号，如 '27.3.1'。"""
+    match = _CLI_VERSION_RE.search(output)
+    return match.group(1) if match else ""
+
+
+def probe_docker_environment() -> DockerEnvStatus:
+    """一次性探测 Docker 安装状态、守护进程与版本信息。
+
+    供状态展示使用：始终真实探测（不读 _env_cache 正向缓存），
+    以便用户中途启动 Docker 后刷新能看到最新状态。
+    """
+    if not _resolve_docker_path():
+        return DockerEnvStatus(installed=False, running=False)
+    ok, out = run_cmd(["docker", "--version"], timeout=5.0)
+    cli_version = _extract_cli_version(out) if ok else ""
+    ok, out = run_cmd(
+        ["docker", "info", "--format", "{{.ServerVersion}}|{{.OSType}}/{{.Architecture}}"],
+        timeout=DAEMON_PROBE_TIMEOUT,
+    )
+    if ok and "|" in out:
+        server_version, _, host_platform = out.strip().partition("|")
+        return DockerEnvStatus(
+            installed=True,
+            running=True,
+            cli_version=cli_version,
+            server_version=server_version,
+            host_platform=host_platform,
+        )
+    return DockerEnvStatus(installed=True, running=False, cli_version=cli_version)
 
 
 def _run_pty_docker(

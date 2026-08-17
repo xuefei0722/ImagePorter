@@ -28,7 +28,7 @@ class TestBuildSidebar(unittest.TestCase):
         theme_btn = ft.IconButton(icon=ft.Icons.DARK_MODE)
         start_btn = build_start_button(lambda e: None)
         self.sidebar = build_sidebar(
-            self.page, theme_btn, start_btn,
+            self.page, theme_btn, start_btn, ft.Container(),
             on_about_click=lambda e: None,
             on_arch_help_click=lambda e: None,
         )

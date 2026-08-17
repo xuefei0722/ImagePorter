@@ -107,6 +107,7 @@ def build_sidebar(
     page: ft.Page,
     theme_btn: ft.IconButton,
     btn_start: ft.Container,
+    env_card: ft.Container,
     on_about_click: Callable,
     on_arch_help_click: Callable,
 ) -> SidebarControls:
@@ -390,6 +391,9 @@ def build_sidebar(
                 ft.Text("导出设置", weight=ft.FontWeight.BOLD, size=14, color="onSurfaceVariant"),
                 export_settings_card,
             ]),
+
+            # 环境状态卡片（自带标题与刷新按钮）
+            env_card,
         ],
     )
 

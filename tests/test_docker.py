@@ -19,6 +19,7 @@ from imageporter.core.docker import (
     _HAS_PTY,
     _build_exec_env,
     _env_cache,
+    _extract_cli_version,
     _normalize_cmd,
     _run_docker_interactive,
     build_tar_path,
@@ -26,6 +27,7 @@ from imageporter.core.docker import (
     choose_platforms,
     get_host_platform,
     get_image_platforms,
+    probe_docker_environment,
     run_cmd,
 )
 
@@ -158,6 +160,59 @@ class TestGetHostPlatform(unittest.TestCase):
         self.assertEqual(get_host_platform(), "linux/arm64")
         self.assertEqual(get_host_platform(), "linux/arm64")
         self.assertEqual(mock_run.call_count, 1)
+
+
+class TestExtractCliVersion(unittest.TestCase):
+    def test_standard_format(self):
+        self.assertEqual(_extract_cli_version("Docker version 27.3.1, build 1234"), "27.3.1")
+
+    def test_no_match(self):
+        self.assertEqual(_extract_cli_version("garbage output"), "")
+
+    def test_cli_style_version(self):
+        self.assertEqual(_extract_cli_version("Docker version 24.0.7, build afdd53b"), "24.0.7")
+
+
+class TestProbeDockerEnvironment(unittest.TestCase):
+    def setUp(self):
+        _env_cache["docker_ok"] = None
+        _env_cache["docker_path"] = None
+
+    def tearDown(self):
+        _env_cache["docker_ok"] = None
+        _env_cache["docker_path"] = None
+
+    @patch("imageporter.core.docker._resolve_docker_path", return_value=None)
+    def test_not_installed(self, _):
+        status = probe_docker_environment()
+        self.assertEqual((status.installed, status.running), (False, False))
+        self.assertEqual(status.cli_version, "")
+
+    @patch(
+        "imageporter.core.docker.run_cmd",
+        side_effect=[(True, "Docker version 27.3.1, build b"), (True, "27.3.1|linux/arm64\n")],
+    )
+    @patch("imageporter.core.docker._resolve_docker_path", return_value="/usr/bin/docker")
+    def test_installed_and_running(self, _, mock_run):
+        status = probe_docker_environment()
+        self.assertEqual((status.installed, status.running), (True, True))
+        self.assertEqual(status.cli_version, "27.3.1")
+        self.assertEqual(status.server_version, "27.3.1")
+        self.assertEqual(status.host_platform, "linux/arm64")
+        # 第二次调用应为合并版的 docker info（一次取服务端版本与主机平台）
+        info_cmd = mock_run.call_args_list[1].args[0]
+        self.assertIn("{{.ServerVersion}}", info_cmd[3])
+        self.assertIn("{{.OSType}}", info_cmd[3])
+
+    @patch(
+        "imageporter.core.docker.run_cmd",
+        side_effect=[(True, "Docker version 27.3.1, build b"), (False, "Cannot connect to daemon")],
+    )
+    @patch("imageporter.core.docker._resolve_docker_path", return_value="/usr/bin/docker")
+    def test_installed_but_not_running(self, _, __):
+        status = probe_docker_environment()
+        self.assertEqual((status.installed, status.running), (True, False))
+        self.assertEqual(status.cli_version, "27.3.1")
 
 
 class TestRunCmd(unittest.TestCase):

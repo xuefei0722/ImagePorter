@@ -70,6 +70,8 @@ mypy
 
 - `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.81.0`）；依赖的单一来源为 `pyproject.toml`，两者保持同步。
 - Docker 依赖的是本机 Docker CLI，而不是 Python `docker` SDK 包；启动任务前会自动探测 Docker 守护进程是否在运行。
+- **环境感知**：侧边栏底部「环境状态」卡片实时展示系统版本/架构与 Docker 安装、运行状态、服务端版本和主机平台（🟢 运行中 / 🔴 未运行 / ⚪ 未安装），支持手动刷新；应用启动与每次任务结束后会自动探测。
+- **环境自检**：`python main.py --check-env` 输出系统/Docker 环境报告，用于安装排障。
 - 层级（Layer）下载进度条基于 Unix PTY 伪终端捕获；Windows 下自动降级为逐行日志展示。
 
 ## 📄 开源协议

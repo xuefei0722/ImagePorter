@@ -18,6 +18,7 @@ Docker 镜像拉取与导出可视化工具（Flet） - UI 现代化重构版
 from __future__ import annotations
 
 import asyncio
+import sys
 import threading
 from queue import Empty, Queue
 
@@ -31,8 +32,11 @@ from imageporter.constants import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
 )
+from imageporter.core.docker import probe_docker_environment
 from imageporter.core.engine import RunConfig, RunEngine
+from imageporter.core.environment import get_system_info, run_environment_check
 from imageporter.ui.dialogs import build_about_dialog, build_arch_help_dialog, open_dialog
+from imageporter.ui.env_card import EnvironmentCard
 from imageporter.ui.panels import build_main_panels
 from imageporter.ui.sidebar import (
     build_button_content,
@@ -125,6 +129,13 @@ def main(page: ft.Page) -> None:
     panels = build_main_panels()
     panels.tab_btn_log.on_click = lambda e: panels.switch_tab(True, e, page)
     panels.tab_btn_task.on_click = lambda e: panels.switch_tab(False, e, page)
+
+    # --- 环境状态卡片（系统信息即时填充，Docker 状态后台探测） ---
+    def refresh_env_status() -> None:
+        emit("ENV_STATUS", status=probe_docker_environment())
+
+    env_card = EnvironmentCard(on_refresh=lambda e=None: page.run_thread(refresh_env_status))
+    env_card.set_system_info(get_system_info())
 
     # --- 逻辑控制函数 ---
 
@@ -249,6 +260,9 @@ def main(page: ft.Page) -> None:
                         )
                     )
                     changed = True
+                elif event_type == "ENV_STATUS":
+                    env_card.apply_docker_status(event["status"])
+                    changed = True
 
             if changed:
                 try:
@@ -267,6 +281,8 @@ def main(page: ft.Page) -> None:
             cleanup=sidebar.cleanup_switch.value,
         )
         RunEngine(config, emit, stop_event).run()
+        # 运行结束后刷新环境状态（覆盖运行期间 Docker 被启停的情况）
+        refresh_env_status()
 
     def on_click_start(e):
         if running["value"]:
@@ -284,7 +300,9 @@ def main(page: ft.Page) -> None:
     # --- 布局组装 ---
 
     btn_start = build_start_button(on_click_start)
-    sidebar = build_sidebar(page, theme_btn, btn_start, open_about_dialog, open_arch_help)
+    sidebar = build_sidebar(
+        page, theme_btn, btn_start, env_card.container, open_about_dialog, open_arch_help
+    )
 
     # 右侧内容布局（状态横幅卡片包裹标题/副标题/进度条，消除顶部留白空旷感）
     main_content = ft.Container(
@@ -308,7 +326,17 @@ def main(page: ft.Page) -> None:
         )
     )
     page.run_task(ui_pump)
+    # 启动即后台探测 Docker 环境（不阻塞首屏渲染）
+    page.run_thread(refresh_env_status)
+
+
+def main_entry() -> None:
+    """命令行入口：支持 --check-env 环境自检（安装/排障用）。"""
+    if "--check-env" in sys.argv:
+        run_environment_check()
+        return
+    ft.run(main)
 
 
 if __name__ == "__main__":
-    ft.run(main)
+    main_entry()
