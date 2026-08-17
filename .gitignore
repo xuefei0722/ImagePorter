@@ -75,3 +75,4 @@ logs/
 main.py.backup
 test.py
 .gstack/
+.worktrees/
