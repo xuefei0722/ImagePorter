@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-17
+
+### Changed
+
+- **升级 flet 0.81.0 → 0.86.5（黑屏根治）**：修复 macOS 打包版在
+  多显示器/混合 DPI（Retina + 外接 1080p）环境下窗口位于外接屏时
+  渲染失败（整窗黑、无报错、移回主屏亦不恢复）的上游缺陷；同时修复
+  打包版 `page.window` 尺寸/最大化/居中 API 不生效的问题（窗口尺寸
+  与最大化记忆功能自此真正可用）。API 兼容性经 234 项测试零修改验证。
+
 ## [1.4.2] - 2026-08-17
 
 ### Fixed
@@ -153,6 +163,7 @@
 
 - 首个版本：Flet UI、多架构并发拉取导出、PTY 进度捕获、主题记忆、偏好设置。
 
+[1.5.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.5.0
 [1.4.2]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.2
 [1.4.1]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.1
 [1.4.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.4.0

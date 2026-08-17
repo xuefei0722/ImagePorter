@@ -3,7 +3,7 @@
 [![CI](https://github.com/xuefei0722/ImagePorter/actions/workflows/ci.yml/badge.svg)](https://github.com/xuefei0722/ImagePorter/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![Flet](https://img.shields.io/badge/flet-0.81.0-green.svg)
+![Flet](https://img.shields.io/badge/flet-0.86.5-green.svg)
 
 > **ImagePorter (鲸舟)** 是一款基于 [Flet](https://flet.dev/) 构建的 Docker 镜像拉取与导出可视化工具。专为具有内网断网环境、需要频繁向离线环境传输 Docker 镜像的开发者设计。
 
@@ -71,7 +71,7 @@ mypy
 
 ## 📌 说明
 
-- `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.81.0`）；依赖的单一来源为 `pyproject.toml`，两者保持同步。
+- `requirements.txt` 仅包含 Python 运行时依赖（当前固定为 `flet==0.86.5`）；依赖的单一来源为 `pyproject.toml`，两者保持同步。
 - Docker 依赖的是本机 Docker CLI，而不是 Python `docker` SDK 包；启动任务前会自动探测 Docker 守护进程是否在运行。
 - **环境感知**：侧边栏底部「环境状态」卡片实时展示系统版本/架构与 Docker 安装、运行状态、服务端版本和主机平台（🟢 运行中 / 🔴 未运行 / ⚪ 未安装），支持手动刷新；应用启动与每次任务结束后会自动探测，Docker 不可用时每 10 秒自动重试、恢复即变绿。Docker 未运行时可从卡片一键启动 Docker Desktop（macOS/Windows），未安装时提供官方下载链接。
 
