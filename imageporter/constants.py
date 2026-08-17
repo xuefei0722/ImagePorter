@@ -21,6 +21,7 @@ MIN_CONCURRENCY = 1
 
 # --- Docker 探测 ---
 DAEMON_PROBE_TIMEOUT = 8.0
+ENV_RETRY_INTERVAL = 10.0
 
 # --- 文件与缓存路径 ---
 CACHE_DIR = os.path.join(os.path.expanduser("~"), ".imageporter")

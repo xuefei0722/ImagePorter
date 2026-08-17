@@ -32,9 +32,14 @@ from imageporter.constants import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
 )
-from imageporter.core.docker import probe_docker_environment
+from imageporter.core.docker import DockerEnvStatus, probe_docker_environment
 from imageporter.core.engine import RunConfig, RunEngine
-from imageporter.core.environment import get_system_info, run_environment_check
+from imageporter.core.environment import (
+    EnvRetryWatcher,
+    get_system_info,
+    launch_docker_desktop,
+    run_environment_check,
+)
 from imageporter.ui.dialogs import build_about_dialog, build_arch_help_dialog, open_dialog
 from imageporter.ui.env_card import EnvironmentCard
 from imageporter.ui.panels import build_main_panels
@@ -130,11 +135,27 @@ def main(page: ft.Page) -> None:
     panels.tab_btn_log.on_click = lambda e: panels.switch_tab(True, e, page)
     panels.tab_btn_task.on_click = lambda e: panels.switch_tab(False, e, page)
 
-    # --- 环境状态卡片（系统信息即时填充，Docker 状态后台探测） ---
-    def refresh_env_status() -> None:
-        emit("ENV_STATUS", status=probe_docker_environment())
+    # --- 环境状态卡片（系统信息即时填充，Docker 状态后台探测/自动重试） ---
+    env_watcher = EnvRetryWatcher(lambda s: emit("ENV_STATUS", status=s))
 
-    env_card = EnvironmentCard(on_refresh=lambda e=None: page.run_thread(refresh_env_status))
+    def refresh_env_status() -> None:
+        status = probe_docker_environment()
+        emit("ENV_STATUS", status=status)
+        env_watcher.maybe_start(status)  # 不可用时进入周期重试，恢复后自动变绿
+
+    def launch_docker_flow() -> None:
+        env_card.set_waiting_launch()
+        if launch_docker_desktop():
+            emit("LOG", msg="[提示] 已请求启动 Docker Desktop，等待守护进程就绪…")
+            env_watcher.maybe_start(DockerEnvStatus(installed=True, running=False))
+        else:
+            emit("LOG", msg="[警告] 无法自动启动 Docker Desktop，请手动启动后点击 ↻ 重新检测")
+            emit("ENV_STATUS", status=probe_docker_environment())
+
+    env_card = EnvironmentCard(
+        on_refresh=lambda e=None: page.run_thread(refresh_env_status),
+        on_launch=lambda e=None: page.run_thread(launch_docker_flow),
+    )
     env_card.set_system_info(get_system_info())
 
     # --- 逻辑控制函数 ---
