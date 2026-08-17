@@ -137,7 +137,7 @@ def main(page: ft.Page) -> None:
         except Exception:
             pass
 
-    page.window.on_event(_persist_window)
+    page.window.on_event = _persist_window  # flet 0.86：on_event 为属性赋值（0.81 是方法调用）
 
     async def center_window_once_ready() -> None:
         # 无条件居中：多显示器环境下系统可能把窗口恢复到副屏的旧位置，
