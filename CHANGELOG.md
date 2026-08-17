@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-17
+
 ### Added
 
 - **导出历史**：成功导出自动落档至 `~/.imageporter/history.json`（上限 200 条，
@@ -17,6 +19,8 @@
   结果以日志与 SnackBar 回报并自动刷新列表。
 - 右侧面板由双 Tab 重构为四 Tab（任务列表/运行日志/导出历史/本机镜像）；
   「在文件管理器中显示」提取为跨平台共用工具。
+- 新增 tag 触发的 Release 流水线：自动构建 macOS `.app` 与 Windows 安装包
+  并附到对应 GitHub Release。
 
 ### Changed
 
@@ -104,4 +108,5 @@
 
 - 首个版本：Flet UI、多架构并发拉取导出、PTY 进度捕获、主题记忆、偏好设置。
 
+[1.3.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.3.0
 [1.2.0]: https://github.com/xuefei0722/ImagePorter/releases/tag/v1.2.0
