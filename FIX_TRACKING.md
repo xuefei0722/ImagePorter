@@ -10,12 +10,12 @@
 
 | 门禁 | 命令 | 结果 |
 |---|---|---|
-| 单元测试 + 覆盖率 | `pytest tests/ --cov=imageporter --cov-fail-under=80` | ✅ **125 passed**（基线 53），覆盖率 **88.97%** ≥ 80% |
+| 单元测试 + 覆盖率 | `pytest tests/ --cov=imageporter --cov-fail-under=80` | ✅ **146 passed**（基线 53；v1.2.0 后 UI 模块化迭代再增 21 项），覆盖率 **~89%** ≥ 80% |
 | 静态检查 | `ruff check .` | ✅ All checks passed（33 项违规清零） |
 | 类型检查 | `mypy`（imageporter 全包） | ✅ 11 个源文件无问题（基线 0 检查） |
 | 语法/导入 | `py_compile` 全模块 + `import main` | ✅ 通过 |
 
-**代码体量变化**: main.py 1,081 → **794 行**（低于 800 红线）；新增 `core/engine.py`(320)、`ui/dialogs.py`(127)；测试 362 → 1,081 行（6 个测试文件）。
+**代码体量变化**: main.py 1,081 → 794（v1.2.0）→ **314 行**（后续 UI 模块化迭代：theme/sidebar/panels 外移）；测试 362 → 1,354 行（9 个测试文件）。
 
 ---
 
@@ -85,7 +85,7 @@
 | P1-5 | pyproject + CI 三门禁 | ✅ |
 | P1-6 | 抽离 worker（engine.py）纳入测试，core 覆盖 ≥80% | ✅（引擎 95%，全包 89%） |
 | P1-7 | AGENTS.md / 版本号 / README 徽章 | ✅ |
-| P2-8 | 拆分 dialogs（main.py <800） | ✅（794 行）；sidebar/pump 进一步拆分 ⏭（无 GUI 目视验证手段，避免盲目重构引入回归，建议作为下一迭代） |
+| P2-8 | 拆分 dialogs（main.py <800） | ✅（v1.2.0 达 794 行）；**后续迭代已完成 theme/sidebar/panels 拆分，main.py 降至 314 行**（超额达成报告 <400 目标），经无头浏览器冒烟与远端 CI 复验通过 |
 | P2-9 | 死代码 / 保存反馈 / host_platform 缓存 | ✅ |
 | P2-10 | CONTRIBUTING + CHANGELOG + issue 模板 | ✅；**i18n 评估：⏭ 暂缓**——目标用户为中文离线交付场景，当前无英文需求信号，待有国际化需求时再抽 gettext 串表（避免 YAGNI） |
 
@@ -99,6 +99,8 @@
    - ✅ **SnackBar 修复端到端生效**：空输入点击「开始执行」弹出红色提示条「请先输入至少一个镜像名称」；
    - ✅ **关于对话框版本单一来源生效**：弹出并显示「版本: v1.2.0」。
    - 未执行项：主题切换/架构对照表弹窗目视（对应逻辑均有单测覆盖，风险低）。
+   - ✅ **UI 模块化重构（theme/sidebar/panels 拆分）后二次冒烟**（2026-08-17）：完整渲染、
+     空输入 SnackBar、关于对话框 v1.2.0 三项复验全部通过，行为与重构前一致。
 2. **`_resolve_docker_path` 真实文件系统分支**未覆盖（66-77%，路径依赖本机环境），属可接受残留。
 3. **多架构同镜像 + cleanup=True** 时逐平台重复拉取（rmi 后无本地缓存复用），效率可再优化（digest 暂存或 containerd store），已在报告 4.2 节说明，非缺陷。
 4. **远端 CI 已验证全绿**（2026-08-17，commit `a2233d2`）：11 个 job 全部成功——

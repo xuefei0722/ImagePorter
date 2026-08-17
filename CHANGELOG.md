@@ -3,6 +3,21 @@
 本项目的显著变更记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Changed
+
+- main.py 继续拆分（794 → 314 行）：明暗主题、左侧边栏、右侧面板分别外移至
+  `ui/theme.py`、`ui/sidebar.py`（`SidebarControls` 控件束）、`ui/panels.py`
+  （`MainPanels`）；Tab 切换与空状态刷新逻辑随面板内聚，行为保持等价。
+- 字符串字面量样式值统一为枚举（`FontWeight.BOLD` / `AnimationCurve.EASE_OUT`），
+  UI 刷新统一采用尽力而为的防御性包裹。
+
+### Added
+
+- 新增 theme/sidebar/panels 三个模块的无窗口构建测试，测试总数 125 → 146，
+  imageporter 包覆盖率维持 ~89%。
+
 ## [1.2.0] - 2026-08-17
 
 ### Fixed
