@@ -1,10 +1,15 @@
-"""右侧主内容面板：状态横幅、日志/任务面板与 Tab 切换。"""
+"""右侧主内容面板：状态横幅、任务/日志/历史/镜像四面板与 Tab 切换。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 import flet as ft
+
+TAB_TASK = "task"
+TAB_LOG = "log"
+TAB_HISTORY = "history"
+TAB_IMAGES = "images"
 
 
 @dataclass
@@ -20,29 +25,51 @@ class MainPanels:
     task_empty_state: ft.Container
     log_panel: ft.Container
     task_panel: ft.Container
+    history_area: ft.Control
+    images_area: ft.Control
     tab_btn_task: ft.TextButton
     tab_btn_log: ft.TextButton
+    tab_btn_history: ft.TextButton
+    tab_btn_images: ft.TextButton
     tab_bar: ft.Row
     content_stack: ft.Stack
 
-    def set_tab_visible(self, show_log: bool) -> bool:
-        """切换面板可见性；无变化时返回 False。"""
-        if show_log == self.log_panel.visible:
+    def _areas(self) -> dict[str, ft.Control]:
+        return {
+            TAB_TASK: self.task_panel,
+            TAB_LOG: self.log_panel,
+            TAB_HISTORY: self.history_area,
+            TAB_IMAGES: self.images_area,
+        }
+
+    def _buttons(self) -> dict[str, ft.TextButton]:
+        return {
+            TAB_TASK: self.tab_btn_task,
+            TAB_LOG: self.tab_btn_log,
+            TAB_HISTORY: self.tab_btn_history,
+            TAB_IMAGES: self.tab_btn_images,
+        }
+
+    def set_active_tab(self, tab: str) -> bool:
+        """切换到指定 Tab；无变化时返回 False。"""
+        areas = self._areas()
+        if tab not in areas or areas[tab].visible:
             return False
-        self.log_panel.visible = show_log
-        self.task_panel.visible = not show_log
-        self.tab_btn_log.style = ft.ButtonStyle(color="primary" if show_log else "onSurfaceVariant")
-        self.tab_btn_task.style = ft.ButtonStyle(color="onSurfaceVariant" if show_log else "primary")
+        for key, area in areas.items():
+            area.visible = key == tab
+        for key, btn in self._buttons().items():
+            btn.style = ft.ButtonStyle(color="primary" if key == tab else "onSurfaceVariant")
         return True
 
-    def switch_tab(self, show_log: bool, e, page: ft.Page) -> None:
+    def switch_tab(self, tab: str, e, page: ft.Page) -> None:
         """统一的 Tab 切换入口（用户点击与引擎事件共用同一逻辑）。"""
-        if not self.set_tab_visible(show_log):
+        if not self.set_active_tab(tab):
             return
         if e is not None:  # 用户点击：局部刷新所涉控件（尽力而为）
             try:
-                for ctrl in (self.log_panel, self.task_panel, self.tab_btn_log, self.tab_btn_task):
-                    ctrl.update()
+                self.content_stack.update()
+                for btn in self._buttons().values():
+                    btn.update()
             except Exception:
                 pass
         else:  # 程序内部触发：交给统一刷新
@@ -58,8 +85,8 @@ class MainPanels:
         self.task_empty_state.visible = not has_tasks
 
 
-def build_main_panels() -> MainPanels:
-    """构建右侧主内容全部面板控件。"""
+def build_main_panels(history_area: ft.Control, images_area: ft.Control) -> MainPanels:
+    """构建右侧主内容全部面板控件（历史/镜像面板由各自模块构建后传入）。"""
     progress_bar = ft.ProgressBar(value=0, color="primary", bgcolor="transparent", height=4)
     status_title = ft.Text("准备就绪", size=20, weight=ft.FontWeight.BOLD)
     status_subtitle = ft.Text("等待任务开始", size=13, color="onSurfaceVariant")
@@ -134,12 +161,20 @@ def build_main_panels() -> MainPanels:
     tab_btn_task = ft.TextButton(  # 默认蓝色高亮
         "任务列表", icon=ft.Icons.LIST_ALT, style=ft.ButtonStyle(color="primary")
     )
-    tab_btn_log = ft.TextButton(  # 默认灰色
+    tab_btn_log = ft.TextButton(
         "运行日志", icon=ft.Icons.TERMINAL, style=ft.ButtonStyle(color="onSurfaceVariant")
     )
+    tab_btn_history = ft.TextButton(
+        "导出历史", icon=ft.Icons.HISTORY, style=ft.ButtonStyle(color="onSurfaceVariant")
+    )
+    tab_btn_images = ft.TextButton(
+        "本机镜像", icon=ft.Icons.DNS_OUTLINED, style=ft.ButtonStyle(color="onSurfaceVariant")
+    )
 
-    tab_bar = ft.Row([tab_btn_task, tab_btn_log], spacing=8)  # 调换渲染顺序
-    content_stack = ft.Stack([log_panel, task_panel], expand=True)  # 谁在下面谁显示在上层
+    tab_bar = ft.Row([tab_btn_task, tab_btn_log, tab_btn_history, tab_btn_images], spacing=8)
+    content_stack = ft.Stack(  # 后列者显示在上层
+        [log_panel, task_panel, history_area, images_area], expand=True
+    )
 
     return MainPanels(
         status_title=status_title,
@@ -151,8 +186,12 @@ def build_main_panels() -> MainPanels:
         task_empty_state=task_empty_state,
         log_panel=log_panel,
         task_panel=task_panel,
+        history_area=history_area,
+        images_area=images_area,
         tab_btn_task=tab_btn_task,
         tab_btn_log=tab_btn_log,
+        tab_btn_history=tab_btn_history,
+        tab_btn_images=tab_btn_images,
         tab_bar=tab_bar,
         content_stack=content_stack,
     )

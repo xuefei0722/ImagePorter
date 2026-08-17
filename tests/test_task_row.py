@@ -94,17 +94,16 @@ class TestTaskRow(unittest.TestCase):
         self.assertEqual(self.row.text_path.color, "grey")
 
     def test_open_path_without_existing_file_does_nothing(self):
-        with patch("imageporter.ui.task_row.subprocess.Popen") as popen:
+        with patch("imageporter.ui.task_row.reveal_in_file_manager") as reveal:
             self.row._open_path(MagicMock())  # final_path 为 None
-            popen.assert_not_called()
+            reveal.assert_not_called()
 
-    def test_open_path_darwin_reveals_in_finder(self):
+    def test_open_path_reveals_via_shared_opener(self):
         self.row.final_path = "/tmp/x.tar"
         with patch("imageporter.ui.task_row.os.path.exists", return_value=True), \
-             patch("imageporter.ui.task_row._platform_mod.system", return_value="Darwin"), \
-             patch("imageporter.ui.task_row.subprocess.Popen") as popen:
+             patch("imageporter.ui.task_row.reveal_in_file_manager") as reveal:
             self.row._open_path(MagicMock())
-            popen.assert_called_once_with(["open", "-R", "/tmp/x.tar"])
+            reveal.assert_called_once_with("/tmp/x.tar")
 
 
 if __name__ == "__main__":

@@ -32,7 +32,12 @@ from imageporter.constants import (
     WINDOW_HEIGHT,
     WINDOW_WIDTH,
 )
-from imageporter.core.docker import DockerEnvStatus, probe_docker_environment
+from imageporter.core.docker import (
+    DockerEnvStatus,
+    list_local_images,
+    probe_docker_environment,
+    remove_local_images,
+)
 from imageporter.core.engine import RunConfig, RunEngine
 from imageporter.core.environment import (
     EnvRetryWatcher,
@@ -40,9 +45,22 @@ from imageporter.core.environment import (
     launch_docker_desktop,
     run_environment_check,
 )
-from imageporter.ui.dialogs import build_about_dialog, build_arch_help_dialog, open_dialog
+from imageporter.ui.dialogs import (
+    build_about_dialog,
+    build_arch_help_dialog,
+    build_confirm_dialog,
+    open_dialog,
+)
 from imageporter.ui.env_card import EnvironmentCard
-from imageporter.ui.panels import build_main_panels
+from imageporter.ui.history_panel import HistoryPanel
+from imageporter.ui.images_panel import ImagesPanel
+from imageporter.ui.panels import (
+    TAB_HISTORY,
+    TAB_IMAGES,
+    TAB_LOG,
+    TAB_TASK,
+    build_main_panels,
+)
 from imageporter.ui.sidebar import (
     build_button_content,
     build_sidebar,
@@ -52,6 +70,14 @@ from imageporter.ui.sidebar import (
 from imageporter.ui.task_row import TaskRow
 from imageporter.ui.theme import build_dark_theme, build_light_theme
 from imageporter.utils.config import load_theme_mode, save_theme_mode
+from imageporter.utils.history import (
+    ExportRecord,
+    add_record,
+    clear_history,
+    load_history,
+    remove_record,
+)
+from imageporter.utils.opener import reveal_in_file_manager
 
 # --- Main UI ---
 
@@ -130,10 +156,77 @@ def main(page: ft.Page) -> None:
     def open_about_dialog(_e=None):
         open_dialog(page, about_dialog, "关于弹窗打开失败")
 
+    # --- 导出历史 / 本机镜像 动作（处理器先行定义，供面板构造引用） ---
+    def refresh_history() -> None:
+        history_panel.refresh(load_history())
+
+    def _delete_history_record(key: str) -> None:
+        history_panel.refresh(remove_record(key))
+
+    def _request_clear_history() -> None:
+        count = len(load_history())
+        open_dialog(
+            page,
+            build_confirm_dialog(
+                page,
+                "清空导出历史",
+                f"将删除全部 {count} 条导出记录。此操作仅清除历史记录，"
+                "不影响已导出的 tar 文件。",
+                "清空",
+                lambda: (clear_history(), refresh_history()),
+            ),
+            "确认框打开失败",
+        )
+
+    def refresh_local_images() -> None:
+        images, err = list_local_images()
+        emit("LOCAL_IMAGES", images=images, error=err)
+
+    def _request_delete_images(refs: list[str]) -> None:
+        preview = "\n".join(refs[:8])
+        if len(refs) > 8:
+            preview += f"\n… 等共 {len(refs)} 个"
+        open_dialog(
+            page,
+            build_confirm_dialog(
+                page,
+                "删除本地镜像",
+                f"将从本机删除以下 {len(refs)} 个镜像并释放相应磁盘空间，"
+                f"此操作不可恢复：\n\n{preview}",
+                "删除",
+                lambda: page.run_thread(_delete_images, refs),
+            ),
+            "确认框打开失败",
+        )
+
+    def _delete_images(refs: list[str]) -> None:
+        removed, failed = remove_local_images(refs)
+        if removed:
+            emit("LOG", msg=f"[成功] 已删除 {len(removed)} 个本地镜像: {', '.join(removed)}")
+        for ref, err in failed:
+            emit("LOG", msg=f"[失败] 删除 {ref}: {err}")
+        emit(
+            "SNACKBAR",
+            msg=f"已删除 {len(removed)} 个镜像" + (f"，{len(failed)} 个失败" if failed else ""),
+            is_error=bool(failed),
+        )
+        refresh_local_images()
+
     # --- 右侧主内容面板（构建于 ui/panels.py） ---
-    panels = build_main_panels()
-    panels.tab_btn_log.on_click = lambda e: panels.switch_tab(True, e, page)
-    panels.tab_btn_task.on_click = lambda e: panels.switch_tab(False, e, page)
+    history_panel = HistoryPanel(
+        on_open=reveal_in_file_manager,
+        on_delete=_delete_history_record,
+        on_clear_all=_request_clear_history,
+    )
+    images_panel = ImagesPanel(
+        on_refresh=lambda: page.run_thread(refresh_local_images),
+        on_delete_selected=_request_delete_images,
+    )
+    panels = build_main_panels(history_panel.view, images_panel.view)
+    panels.tab_btn_task.on_click = lambda e: panels.switch_tab(TAB_TASK, e, page)
+    panels.tab_btn_log.on_click = lambda e: panels.switch_tab(TAB_LOG, e, page)
+    panels.tab_btn_history.on_click = lambda e: panels.switch_tab(TAB_HISTORY, e, page)
+    panels.tab_btn_images.on_click = lambda e: panels.switch_tab(TAB_IMAGES, e, page)
 
     # --- 环境状态卡片（系统信息即时填充，Docker 状态后台探测/自动重试） ---
     env_watcher = EnvRetryWatcher(lambda s: emit("ENV_STATUS", status=s))
@@ -245,7 +338,7 @@ def main(page: ft.Page) -> None:
                     panels.refresh_task_empty_state()
                     changed = True
                 elif event_type == "SHOW_TASK":
-                    changed = panels.set_tab_visible(False) or changed
+                    changed = panels.set_active_tab(TAB_TASK) or changed
                 elif event_type == "RUNNING":
                     apply_running_state(bool(event.get("value")))
                     changed = True
@@ -283,6 +376,19 @@ def main(page: ft.Page) -> None:
                     changed = True
                 elif event_type == "ENV_STATUS":
                     env_card.apply_docker_status(event["status"])
+                    changed = True
+                elif event_type == "EXPORT_DONE":
+                    record = ExportRecord(
+                        timestamp=event.get("timestamp", ""),
+                        image=event.get("image", ""),
+                        platform=event.get("platform", ""),
+                        tar_path=event.get("path", ""),
+                        file_size=int(event.get("size", 0)),
+                    )
+                    history_panel.refresh(add_record(record))
+                    changed = True
+                elif event_type == "LOCAL_IMAGES":
+                    images_panel.refresh(event.get("images") or [], error=event.get("error", ""))
                     changed = True
 
             if changed:
@@ -347,8 +453,10 @@ def main(page: ft.Page) -> None:
         )
     )
     page.run_task(ui_pump)
-    # 启动即后台探测 Docker 环境（不阻塞首屏渲染）
+    # 启动即后台探测 Docker 环境与本地镜像列表（不阻塞首屏渲染）
     page.run_thread(refresh_env_status)
+    page.run_thread(refresh_local_images)
+    refresh_history()
 
 
 def main_entry() -> None:

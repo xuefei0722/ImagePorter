@@ -26,6 +26,8 @@ ENV_RETRY_INTERVAL = 10.0
 # --- 文件与缓存路径 ---
 CACHE_DIR = os.path.join(os.path.expanduser("~"), ".imageporter")
 PREFS_FILE = os.path.join(CACHE_DIR, "prefs.json")
+HISTORY_FILE = os.path.join(CACHE_DIR, "history.json")
+HISTORY_LIMIT = 200
 
 # --- Docker CLI 路径提示 ---
 DOCKER_PATH_HINTS_UNIX = [

@@ -80,5 +80,35 @@ class TestOpenDialog(unittest.TestCase):
         self.assertTrue(snackbar.open)
 
 
+class TestConfirmDialog(unittest.TestCase):
+    def test_confirm_runs_callback_and_closes(self):
+        from imageporter.ui.dialogs import build_confirm_dialog
+
+        page = MagicMock()
+        confirmed = []
+        dialog = build_confirm_dialog(
+            page, "删除确认", "将删除 2 个镜像，不可恢复", "删除",
+            lambda: confirmed.append(True),
+        )
+        self.assertIsInstance(dialog, ft.AlertDialog)
+        # actions: [取消, 确认]
+        cancel_btn, confirm_btn = dialog.actions
+        confirm_btn.on_click("evt")
+        self.assertEqual(confirmed, [True])
+        self.assertFalse(dialog.open)  # 确认后关闭
+        page.update.assert_called()
+
+    def test_cancel_skips_callback(self):
+        from imageporter.ui.dialogs import build_confirm_dialog
+
+        page = MagicMock()
+        confirmed = []
+        dialog = build_confirm_dialog(page, "确认", "消息", "确定", lambda: confirmed.append(True))
+        cancel_btn = dialog.actions[0]
+        cancel_btn.on_click("evt")
+        self.assertEqual(confirmed, [])
+        self.assertFalse(dialog.open)
+
+
 if __name__ == "__main__":
     unittest.main()

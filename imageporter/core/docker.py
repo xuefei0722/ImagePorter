@@ -472,3 +472,68 @@ def docker_save(
 def docker_remove(image: str) -> None:
     """删除本地 Docker 镜像。"""
     run_cmd(["docker", "rmi", image])
+
+
+@dataclass(frozen=True)
+class LocalImage:
+    """本机镜像条目（docker images --format '{{json .}}' 解析结果）。"""
+
+    repository: str
+    tag: str
+    image_id: str  # 12 位短 ID
+    created_since: str
+    size: str  # 人类可读体积，如 '104MB'
+
+    @property
+    def ref(self) -> str:
+        """rmi 用的引用；悬空镜像（<none>）退回短 ID。"""
+        if self.repository == "<none>" or self.tag == "<none>":
+            return self.image_id
+        return f"{self.repository}:{self.tag}"
+
+    @property
+    def display_name(self) -> str:
+        if self.repository == "<none>" and self.tag == "<none>":
+            return f"{self.image_id}（无标签）"
+        if self.tag == "<none>":
+            return f"{self.repository}（无标签）"
+        return f"{self.repository}:{self.tag}"
+
+
+def list_local_images() -> tuple[list[LocalImage], str]:
+    """列出本机镜像；失败时返回 ([], 错误信息)。"""
+    ok, out = run_cmd(["docker", "images", "--format", "{{json .}}"])
+    if not ok:
+        return [], out.strip()[:200] or "docker images 执行失败"
+    images: list[LocalImage] = []
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            item = json.loads(line)
+            images.append(
+                LocalImage(
+                    repository=str(item.get("Repository", "")),
+                    tag=str(item.get("Tag", "")),
+                    image_id=str(item.get("ID", "")).removeprefix("sha256:")[:12],
+                    created_since=str(item.get("CreatedSince", "")),
+                    size=str(item.get("Size", "")),
+                )
+            )
+        except (json.JSONDecodeError, TypeError, ValueError):
+            continue  # 容错跳过坏行
+    return images, ""
+
+
+def remove_local_images(refs: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
+    """逐个删除本地镜像，返回 (成功 refs, [(失败 ref, 错误信息)])。"""
+    removed: list[str] = []
+    failed: list[tuple[str, str]] = []
+    for ref in refs:
+        ok, out = run_cmd(["docker", "rmi", ref], timeout=60.0)
+        if ok:
+            removed.append(ref)
+        else:
+            failed.append((ref, out.strip()[:200] or "删除失败"))
+    return removed, failed

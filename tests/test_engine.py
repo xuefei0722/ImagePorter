@@ -96,6 +96,24 @@ class TestRunEngineHappyPath(PatchedDockerTestCase):
         self.assertEqual((final["total"], final["success"], final["fail"], final["steps"]), (2, 2, 0, 4))
         self.assertIn("全部 2 个任务执行成功", rec.last_payload("SNACKBAR")["msg"])
 
+    def test_export_done_emitted_on_save_success(self):
+        """导出成功应发出 EXPORT_DONE（含镜像/平台/路径/体积/时间戳）供历史落档。"""
+        with patch("imageporter.core.engine.os.path.getsize", return_value=4096):
+            rec = Recorder().run(make_config())
+        exports = rec.payloads("EXPORT_DONE")
+        self.assertEqual(len(exports), 1)
+        payload = exports[0]
+        self.assertEqual(payload["image"], "nginx")
+        self.assertEqual(payload["platform"], "linux/amd64")
+        self.assertEqual(payload["path"], "/tmp/out.tar")
+        self.assertEqual(payload["size"], 4096)
+        self.assertTrue(payload["timestamp"])  # ISO 时间戳非空
+
+    def test_no_export_done_when_save_fails(self):
+        self.save.return_value = (False, "/tmp/x.tar", "err")
+        rec = Recorder().run(make_config())
+        self.assertEqual(rec.payloads("EXPORT_DONE"), [])
+
     def test_pull_and_save_called_per_task(self):
         Recorder().run(make_config(images_raw="nginx\nredis"))
         self.assertEqual(self.pull.call_count, 2)

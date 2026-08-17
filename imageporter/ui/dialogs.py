@@ -1,10 +1,12 @@
-"""关于与架构对照表对话框。
+"""关于与架构对照表对话框、通用确认对话框。
 
 对话框本体在此构建；打开/关闭需要操作 page（overlay 与全局刷新），
 由 main.py 通过 open_dialog 驱动，保持模块不反向依赖应用状态。
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import flet as ft
 
@@ -125,3 +127,32 @@ def open_dialog(page: ft.Page, dialog: ft.AlertDialog, error_hint: str) -> None:
     except Exception as ex:
         page.overlay.append(ft.SnackBar(ft.Text(f"{error_hint}: {ex}"), open=True))
         page.update()
+
+
+def build_confirm_dialog(
+    page: ft.Page,
+    title: str,
+    message: str,
+    confirm_text: str,
+    on_confirm: Callable,
+) -> ft.AlertDialog:
+    """构建模态确认对话框（取消/确认；确认后关闭并执行回调）。"""
+    def close(_e=None):
+        dialog.open = False
+        page.update()
+
+    def _confirm(_e=None):
+        close()
+        on_confirm()
+
+    dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(title, weight=ft.FontWeight.BOLD),
+        content=ft.Container(width=440, content=ft.Text(message, size=13)),
+        actions=[
+            ft.TextButton("取消", on_click=close),
+            ft.TextButton(confirm_text, style=ft.ButtonStyle(color="error"), on_click=_confirm),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+    return dialog

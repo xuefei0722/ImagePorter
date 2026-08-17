@@ -8,10 +8,10 @@ TaskRow UI component for displaying image pull and export status.
 from __future__ import annotations
 
 import os
-import platform as _platform_mod
-import subprocess
 
 import flet as ft
+
+from imageporter.utils.opener import reveal_in_file_manager
 
 
 class TaskRow(ft.Container):
@@ -84,15 +84,7 @@ class TaskRow(ft.Container):
         """Open the file in the system file manager."""
         if not (self.final_path and os.path.exists(self.final_path)):
             return
-        try:
-            if _platform_mod.system() == "Darwin":
-                subprocess.Popen(["open", "-R", self.final_path])
-            elif _platform_mod.system() == "Windows":
-                subprocess.Popen(["explorer", "/select,", os.path.normpath(self.final_path)])
-            else:  # Linux / 其他
-                subprocess.Popen(["xdg-open", os.path.dirname(self.final_path)])
-        except Exception:
-            pass
+        reveal_in_file_manager(self.final_path)
 
     def _hover_path(self, e):
         """Handle hover state for the path display."""

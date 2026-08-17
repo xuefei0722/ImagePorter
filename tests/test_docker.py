@@ -435,5 +435,71 @@ class TestDockerWrappers(unittest.TestCase):
         mock_run.assert_called_once_with(["docker", "rmi", "nginx"])
 
 
+class TestLocalImage(unittest.TestCase):
+    def test_ref_normal(self):
+        from imageporter.core.docker import LocalImage
+        img = LocalImage("nginx", "latest", "abc123def456", "2 days ago", "104MB")
+        self.assertEqual(img.ref, "nginx:latest")
+        self.assertEqual(img.display_name, "nginx:latest")
+
+    def test_ref_dangling_uses_id(self):
+        from imageporter.core.docker import LocalImage
+        img = LocalImage("<none>", "<none>", "abc123def456", "2 days ago", "52MB")
+        self.assertEqual(img.ref, "abc123def456")
+        self.assertIn("无标签", img.display_name)
+        self.assertIn("abc123def456", img.display_name)
+
+    def test_ref_none_tag(self):
+        from imageporter.core.docker import LocalImage
+        img = LocalImage("myrepo", "<none>", "abc123def456", "2 days ago", "52MB")
+        self.assertEqual(img.ref, "abc123def456")
+
+
+class TestListLocalImages(unittest.TestCase):
+    @patch("imageporter.core.docker.run_cmd")
+    def test_parses_json_lines(self, mock_run):
+        from imageporter.core.docker import list_local_images
+        lines = "\n".join([
+            '{"Repository":"nginx","Tag":"latest","ID":"sha256:abc123def456789",'
+            '"CreatedSince":"2 days ago","Size":"104MB"}',
+            '{"Repository":"redis","Tag":"7","ID":"sha256:def789abc123456",'
+            '"CreatedSince":"3 weeks ago","Size":"138MB"}',
+        ])
+        mock_run.return_value = (True, lines + "\n")
+        images, err = list_local_images()
+        self.assertEqual(err, "")
+        self.assertEqual(len(images), 2)
+        self.assertEqual(images[0].ref, "nginx:latest")
+        self.assertEqual(images[0].image_id, "abc123def456")  # 去前缀截短
+        self.assertEqual(images[1].size, "138MB")
+
+    @patch("imageporter.core.docker.run_cmd")
+    def test_skips_corrupt_lines(self, mock_run):
+        from imageporter.core.docker import list_local_images
+        ok_line = '{"Repository":"nginx","Tag":"1","ID":"x","CreatedSince":"","Size":"1MB"}'
+        mock_run.return_value = (True, "not-json\n" + ok_line + "\n")
+        images, err = list_local_images()
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0].repository, "nginx")
+
+    @patch("imageporter.core.docker.run_cmd", return_value=(False, "Cannot connect"))
+    def test_failure_returns_error(self, _mock):
+        from imageporter.core.docker import list_local_images
+        images, err = list_local_images()
+        self.assertEqual(images, [])
+        self.assertIn("Cannot connect", err)
+
+
+class TestRemoveLocalImages(unittest.TestCase):
+    @patch("imageporter.core.docker.run_cmd", side_effect=[(True, "Untagged"), (False, "image in use")])
+    def test_mixed_results(self, _mock):
+        from imageporter.core.docker import remove_local_images
+        removed, failed = remove_local_images(["nginx:latest", "redis:7"])
+        self.assertEqual(removed, ["nginx:latest"])
+        self.assertEqual(len(failed), 1)
+        self.assertEqual(failed[0][0], "redis:7")
+        self.assertIn("image in use", failed[0][1])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -17,6 +17,7 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from datetime import datetime
 
 from imageporter.constants import MAX_CONCURRENCY, MIN_CONCURRENCY
 from imageporter.core.docker import (
@@ -35,6 +36,17 @@ from imageporter.core.parser import (
 )
 
 EmitFn = Callable[..., None]
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _file_size(path: str) -> int:
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
 
 
 @dataclass(frozen=True)
@@ -294,6 +306,15 @@ class RunEngine:
                 self.emit("TASK_SAVE_STATUS", task_id=task_id, status="导出完成", ok=True, path=tar_path)
                 self.emit("TASK_COMPLETE", task_id=task_id, success=True)
                 self.emit("LOG", msg=f"[成功] 导出: {tar_path}")
+                # 导出成功 → 通知 UI 层落档历史记录
+                self.emit(
+                    "EXPORT_DONE",
+                    image=image,
+                    platform=platform,
+                    path=tar_path,
+                    size=_file_size(tar_path),
+                    timestamp=_now_iso(),
+                )
                 self._stat(done=1, success=1, steps=1)
             else:
                 stopped = self.stop_event.is_set()
